@@ -5,6 +5,7 @@ const state = {
   points: [],
   dragIndex: null,
   pointEditTimer: null,
+  bayesPreset: "covid",
   distribution: "binomial",
   dist: { n: 12, p: 0.35, lambda: 4, mu: 0, sigma: 1.4, a: 2, b: 3 },
   approx: { n: 30, p: 0.4, continuity: true },
@@ -12,6 +13,45 @@ const state = {
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+
+const bayesPresets = {
+  covid: {
+    title: "コロナ検査の例",
+    chip: "病気と検査陽性",
+    note: "対象は「感染している人」、結果は「検査で陽性」です。低い有病率のとき、陽性者の中に偽陽性がどれくらい混ざるかを見ます。",
+    populationLabel: "検査人数",
+    prevalenceLabel: "有病率",
+    sensitivityLabel: "感度 \\(P(+\\mid\\text{感染})\\)",
+    specificityLabel: "特異度 \\(P(-\\mid\\text{非感染})\\)",
+    targetLabel: "感染あり",
+    nonTargetLabel: "感染なし",
+    positiveLabel: "陽性",
+    negativeLabel: "陰性",
+    targetInPositiveLabel: "感染",
+    positiveSentence: "陽性者",
+    truePositiveSentence: "本当に感染している人",
+    unit: "人",
+    values: { population: 10000, prevalence: 2, sensitivity: 95, specificity: 90 },
+  },
+  spam: {
+    title: "迷惑メール判定の例",
+    chip: "迷惑メールと判定あり",
+    note: "対象は「迷惑メール」、結果は「フィルタが迷惑メールと判定」です。迷惑メールの割合やフィルタ性能を変え、誤判定の影響を見ます。",
+    populationLabel: "メール件数",
+    prevalenceLabel: "迷惑メール率",
+    sensitivityLabel: "検出率 \\(P(+\\mid\\text{迷惑メール})\\)",
+    specificityLabel: "正常判定率 \\(P(-\\mid\\text{通常メール})\\)",
+    targetLabel: "迷惑メール",
+    nonTargetLabel: "通常メール",
+    positiveLabel: "判定あり",
+    negativeLabel: "判定なし",
+    targetInPositiveLabel: "迷惑メール",
+    positiveSentence: "迷惑メール判定されたメール",
+    truePositiveSentence: "本当に迷惑メール",
+    unit: "件",
+    values: { population: 10000, prevalence: 35, sensitivity: 98, specificity: 95 },
+  },
+};
 
 const dom = {
   views: $$(".view"),
@@ -43,9 +83,17 @@ const dom = {
   sensitivity: $("#sensitivity"),
   specificity: $("#specificity"),
   populationValue: $("#population-value"),
+  populationLabel: $("#population-label"),
   prevalenceValue: $("#prevalence-value"),
+  prevalenceLabel: $("#prevalence-label"),
   sensitivityValue: $("#sensitivity-value"),
+  sensitivityLabel: $("#sensitivity-label"),
   specificityValue: $("#specificity-value"),
+  specificityLabel: $("#specificity-label"),
+  bayesScenarioTitle: $("#bayes-scenario-title"),
+  bayesScenarioChip: $("#bayes-scenario-chip"),
+  bayesScenarioNote: $("#bayes-scenario-note"),
+  bayesPresetButtons: $$(".bayes-preset"),
   bayesResult: $("#bayes-result"),
   bayesTable: $("#bayes-table"),
   bayesBars: $("#bayes-bars"),
@@ -560,6 +608,7 @@ function getScatterPointer(event) {
 }
 
 function renderBayes() {
+  const preset = bayesPresets[state.bayesPreset];
   const population = Number(dom.population.value);
   const prevalence = Number(dom.prevalence.value) / 100;
   const sensitivity = Number(dom.sensitivity.value) / 100;
@@ -573,39 +622,58 @@ function renderBayes() {
   const positive = truePositive + falsePositive;
   const posterior = truePositive / positive;
 
-  dom.populationValue.textContent = `${population.toLocaleString("ja-JP")}人`;
+  dom.bayesScenarioTitle.textContent = preset.title;
+  dom.bayesScenarioChip.textContent = preset.chip;
+  dom.bayesScenarioNote.textContent = preset.note;
+  dom.populationLabel.textContent = preset.populationLabel;
+  dom.prevalenceLabel.textContent = preset.prevalenceLabel;
+  dom.sensitivityLabel.innerHTML = preset.sensitivityLabel;
+  dom.specificityLabel.innerHTML = preset.specificityLabel;
+  dom.bayesPresetButtons.forEach((button) => button.classList.toggle("active", button.dataset.preset === state.bayesPreset));
+  dom.populationValue.textContent = `${population.toLocaleString("ja-JP")}${preset.unit}`;
   dom.prevalenceValue.textContent = `${fmt(prevalence * 100, 1)}%`;
   dom.sensitivityValue.textContent = `${fmt(sensitivity * 100, 0)}%`;
   dom.specificityValue.textContent = `${fmt(specificity * 100, 0)}%`;
   dom.bayesResult.innerHTML = `
     \\[
-      P(\\text{病気}\\mid\\text{陽性})
-      = \\frac{P(\\text{陽性}\\mid\\text{病気})P(\\text{病気})}{P(\\text{陽性})}
+      P(\\text{${preset.targetInPositiveLabel}}\\mid\\text{${preset.positiveLabel}})
+      = \\frac{P(\\text{${preset.positiveLabel}}\\mid\\text{${preset.targetInPositiveLabel}})P(\\text{${preset.targetInPositiveLabel}})}{P(\\text{${preset.positiveLabel}})}
       = ${fmt(posterior * 100, 2)}\\%
     \\]
-    陽性者 ${fmt(positive, 0)}人のうち、本当に病気の人は ${fmt(truePositive, 0)}人です。
+    ${preset.positiveSentence} ${fmt(positive, 0)}${preset.unit}のうち、${preset.truePositiveSentence}は ${fmt(truePositive, 0)}${preset.unit}です。
   `;
   dom.bayesTable.innerHTML = `
-    <thead><tr><th></th><th>陽性</th><th>陰性</th><th>合計</th></tr></thead>
+    <thead><tr><th></th><th>${preset.positiveLabel}</th><th>${preset.negativeLabel}</th><th>合計</th></tr></thead>
     <tbody>
-      <tr><td>病気あり</td><td>${fmt(truePositive, 0)}</td><td>${fmt(falseNegative, 0)}</td><td>${fmt(diseased, 0)}</td></tr>
-      <tr><td>病気なし</td><td>${fmt(falsePositive, 0)}</td><td>${fmt(trueNegative, 0)}</td><td>${fmt(healthy, 0)}</td></tr>
+      <tr><td>${preset.targetLabel}</td><td>${fmt(truePositive, 0)}</td><td>${fmt(falseNegative, 0)}</td><td>${fmt(diseased, 0)}</td></tr>
+      <tr><td>${preset.nonTargetLabel}</td><td>${fmt(falsePositive, 0)}</td><td>${fmt(trueNegative, 0)}</td><td>${fmt(healthy, 0)}</td></tr>
       <tr><td>合計</td><td>${fmt(positive, 0)}</td><td>${fmt(falseNegative + trueNegative, 0)}</td><td>${fmt(population, 0)}</td></tr>
     </tbody>
   `;
-  drawGroupedBayes({ truePositive, falsePositive, falseNegative, trueNegative });
+  drawGroupedBayes({ truePositive, falsePositive, falseNegative, trueNegative }, preset);
   typesetMath();
 }
 
-function drawGroupedBayes(values) {
+function applyBayesPreset(presetName) {
+  const preset = bayesPresets[presetName];
+  if (!preset) return;
+  state.bayesPreset = presetName;
+  dom.population.value = preset.values.population;
+  dom.prevalence.value = preset.values.prevalence;
+  dom.sensitivity.value = preset.values.sensitivity;
+  dom.specificity.value = preset.values.specificity;
+  renderBayes();
+}
+
+function drawGroupedBayes(values, preset) {
   const { ctx, width, height } = clearCanvas(dom.bayesBars);
   const padding = 46;
   drawFrame(ctx, width, height, padding);
   const items = [
-    { label: "真陽性", value: values.truePositive, color: "#237a57" },
-    { label: "偽陽性", value: values.falsePositive, color: "#c13d37" },
-    { label: "偽陰性", value: values.falseNegative, color: "#b36b00" },
-    { label: "真陰性", value: values.trueNegative, color: "#2f6ed3" },
+    { label: `真${preset.positiveLabel}`, value: values.truePositive, color: "#237a57" },
+    { label: `偽${preset.positiveLabel}`, value: values.falsePositive, color: "#c13d37" },
+    { label: `偽${preset.negativeLabel}`, value: values.falseNegative, color: "#b36b00" },
+    { label: `真${preset.negativeLabel}`, value: values.trueNegative, color: "#2f6ed3" },
   ];
   const max = Math.max(...items.map((item) => item.value), 1);
   const gap = 22;
@@ -872,6 +940,9 @@ function bindEvents() {
   });
 
   [dom.population, dom.prevalence, dom.sensitivity, dom.specificity].forEach((input) => input.addEventListener("input", renderBayes));
+  dom.bayesPresetButtons.forEach((button) => {
+    button.addEventListener("click", () => applyBayesPreset(button.dataset.preset));
+  });
 
   $$(".segment[data-dist]").forEach((button) => {
     button.addEventListener("click", () => {

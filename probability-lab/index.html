@@ -225,21 +225,29 @@
 
           <div class="layout two">
             <section class="panel">
-              <h3>検査の例</h3>
+              <div class="panel-title">
+                <h3 id="bayes-scenario-title">コロナ検査の例</h3>
+                <span class="chip" id="bayes-scenario-chip">検査と事前確率</span>
+              </div>
+              <div class="actions preset-actions" aria-label="条件付き確率の例">
+                <button class="bayes-preset active" type="button" data-preset="covid">コロナ検査</button>
+                <button class="bayes-preset" type="button" data-preset="spam">迷惑メール</button>
+              </div>
+              <p class="scenario-note" id="bayes-scenario-note"></p>
               <div class="control-row">
-                <label>人数 <input id="population" type="range" min="1000" max="100000" step="1000" value="10000" /></label>
+                <label><span id="population-label">人数</span> <input id="population" type="range" min="1000" max="100000" step="1000" value="10000" /></label>
                 <output id="population-value"></output>
               </div>
               <div class="control-row">
-                <label>有病率 <input id="prevalence" type="range" min="0.1" max="20" step="0.1" value="2" /></label>
+                <label><span id="prevalence-label">有病率</span> <input id="prevalence" type="range" min="0.1" max="80" step="0.1" value="2" /></label>
                 <output id="prevalence-value"></output>
               </div>
               <div class="control-row">
-                <label>感度 \(P(+\mid\text{病気})\) <input id="sensitivity" type="range" min="50" max="100" step="1" value="95" /></label>
+                <label><span id="sensitivity-label">感度 \(P(+\mid\text{病気})\)</span> <input id="sensitivity" type="range" min="50" max="100" step="1" value="95" /></label>
                 <output id="sensitivity-value"></output>
               </div>
               <div class="control-row">
-                <label>特異度 \(P(-\mid\text{健康})\) <input id="specificity" type="range" min="50" max="100" step="1" value="90" /></label>
+                <label><span id="specificity-label">特異度 \(P(-\mid\text{健康})\)</span> <input id="specificity" type="range" min="50" max="100" step="1" value="90" /></label>
                 <output id="specificity-value"></output>
               </div>
               <div class="result-card" id="bayes-result"></div>
@@ -260,9 +268,9 @@
           <section class="prompt-panel">
             <h3>考察事項</h3>
             <ul>
-              <li>検査精度が高くても、陽性者の中に本当に病気の人が少ない場合があるのはなぜか。</li>
-              <li>\(P(\text{陽性}\mid\text{病気})\) と \(P(\text{病気}\mid\text{陽性})\) は何が違うか。</li>
-              <li>有病率が低い集団と高い集団では、同じ検査結果の意味はどう変わるか。</li>
+              <li>検査や判定の精度が高くても、陽性・判定ありの中に本当に対象であるものが少ない場合があるのはなぜか。</li>
+              <li>\(P(+\mid\text{対象})\) と \(P(\text{対象}\mid +)\) は何が違うか。</li>
+              <li>事前確率が低い集団と高い集団では、同じ結果の意味はどう変わるか。</li>
               <li>ベイズの定理を「式」ではなく「人数の絞り込み」として説明するとどうなるか。</li>
             </ul>
           </section>
