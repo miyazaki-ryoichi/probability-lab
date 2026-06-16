@@ -384,8 +384,8 @@ function renderRepresentativeNotes(data, avg, med, modeInfo) {
   const n = sorted.length;
   const medianPosition =
     n % 2
-      ? `\\(x_{(${n}+1)/2}=x_${(n + 1) / 2}\\)`
-      : `\\(\\frac{x_{${n / 2}}+x_${n / 2 + 1}}{2}\\)`;
+      ? `\\(x_{(${n}+1)/2}=x_{${(n + 1) / 2}}\\)`
+      : `\\(\\frac{x_{${n / 2}}+x_{${n / 2 + 1}}}{2}\\)`;
   const modeText = modeInfo.values.length
     ? `このデータでは ${modeInfo.values.map((value) => fmt(value)).join(", ")} が ${modeInfo.count} 回${modeInfo.values.length > 1 ? "ずつ" : ""}出ているため、最頻値です。`
     : "全ての値の出現回数が1回なので、このデータでは最頻値はありません。";
