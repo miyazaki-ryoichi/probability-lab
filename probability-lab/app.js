@@ -97,6 +97,14 @@ function statCard(label, value) {
   return `<div class="stat"><span>${label}</span><strong>${value}</strong></div>`;
 }
 
+function typesetMath() {
+  if (!window.MathJax?.typesetPromise) return;
+  window.MathJax.typesetClear?.();
+  window.MathJax.typesetPromise([document.body]).catch((error) => {
+    console.warn("MathJax typeset failed", error);
+  });
+}
+
 function resizeCanvas(canvas) {
   const rect = canvas.getBoundingClientRect();
   const ratio = window.devicePixelRatio || 1;
@@ -243,18 +251,25 @@ function renderCorrelation() {
   const points = state.points;
   const result = regression(points);
   dom.regressionGrid.innerHTML = [
-    statCard("相関係数 r", fmt(result.r, 4)),
-    statCard("決定係数 r²", fmt(result.r2, 4)),
-    statCard("xの平均", fmt(result.xbar)),
-    statCard("yの平均", fmt(result.ybar)),
+    statCard("相関係数 \\(r\\)", fmt(result.r, 4)),
+    statCard("決定係数 \\(r^2\\)", fmt(result.r2, 4)),
+    statCard("\\(x\\) の平均", fmt(result.xbar)),
+    statCard("\\(y\\) の平均", fmt(result.ybar)),
   ].join("");
-  dom.regressionEquation.innerHTML = `回帰直線: y = ${fmt(result.slope, 3)}x ${result.intercept >= 0 ? "+" : "-"} ${fmt(Math.abs(result.intercept), 3)}<br>最小二乗法では、各点から直線までの縦方向のずれの2乗和を最小にします。`;
+  dom.regressionEquation.innerHTML = `
+    回帰直線:
+    \\[
+      y = ${fmt(result.slope, 3)}x ${result.intercept >= 0 ? "+" : "-"} ${fmt(Math.abs(result.intercept), 3)}
+    \\]
+    最小二乗法では、\\(\\sum_i (y_i - \\hat{y}_i)^2\\) を最小にします。
+  `;
   dom.pointTable.innerHTML = `
     <table><thead><tr><th>#</th><th>x</th><th>y</th></tr></thead><tbody>
       ${points.map((point, index) => `<tr><td>${index + 1}</td><td>${fmt(point.x, 1)}</td><td>${fmt(point.y, 1)}</td></tr>`).join("")}
     </tbody></table>
   `;
   drawScatter(result);
+  typesetMath();
 }
 
 function pointToCanvas(point, width, height, padding) {
@@ -322,7 +337,11 @@ function renderBayes() {
   dom.sensitivityValue.textContent = `${fmt(sensitivity * 100, 0)}%`;
   dom.specificityValue.textContent = `${fmt(specificity * 100, 0)}%`;
   dom.bayesResult.innerHTML = `
-    P(病気|陽性) = <strong>${fmt(posterior * 100, 2)}%</strong><br>
+    \\[
+      P(\\text{病気}\\mid\\text{陽性})
+      = \\frac{P(\\text{陽性}\\mid\\text{病気})P(\\text{病気})}{P(\\text{陽性})}
+      = ${fmt(posterior * 100, 2)}\\%
+    \\]
     陽性者 ${fmt(positive, 0)}人のうち、本当に病気の人は ${fmt(truePositive, 0)}人です。
   `;
   dom.bayesTable.innerHTML = `
@@ -334,6 +353,7 @@ function renderBayes() {
     </tbody>
   `;
   drawGroupedBayes({ truePositive, falsePositive, falseNegative, trueNegative });
+  typesetMath();
 }
 
 function drawGroupedBayes(values) {
@@ -448,28 +468,29 @@ function renderDistribution() {
   if (state.distribution === "binomial") {
     expected = state.dist.n * state.dist.p;
     vari = state.dist.n * state.dist.p * (1 - state.dist.p);
-    formula = "P(X=k) = nCk p^k (1-p)^(n-k)";
+    formula = "\\[P(X=k) = {}_nC_k p^k(1-p)^{n-k}\\]";
     chip = "離散型";
   } else if (state.distribution === "poisson") {
     expected = state.dist.lambda;
     vari = state.dist.lambda;
-    formula = "P(X=k) = e^-λ λ^k / k!";
+    formula = "\\[P(X=k)=\\frac{e^{-\\lambda}\\lambda^k}{k!}\\]";
     chip = "離散型";
   } else {
     expected = state.dist.mu;
     vari = state.dist.sigma ** 2;
-    formula = "f(x) = 1/(σ√2π) exp(-(x-μ)^2/(2σ^2))";
+    formula = "\\[f(x)=\\frac{1}{\\sigma\\sqrt{2\\pi}}\\exp\\left(-\\frac{(x-\\mu)^2}{2\\sigma^2}\\right)\\]";
     chip = "連続型";
   }
   dom.distGrid.innerHTML = [
-    statCard("期待値 E(X)", fmt(expected)),
-    statCard("分散 V(X)", fmt(vari)),
+    statCard("期待値 \\(E(X)\\)", fmt(expected)),
+    statCard("分散 \\(V(X)\\)", fmt(vari)),
     statCard("標準偏差", fmt(Math.sqrt(vari))),
-    statCard("性質", `E(2X+3)=${fmt(2 * expected + 3)} / V(2X+3)=${fmt(4 * vari)}`),
+    statCard("性質", `\\(E(2X+3)=${fmt(2 * expected + 3)}\\)<br>\\(V(2X+3)=${fmt(4 * vari)}\\)`),
   ].join("");
-  dom.distFormula.textContent = formula;
+  dom.distFormula.innerHTML = formula;
   dom.distChip.textContent = chip;
   drawBars(dom.distCanvas, items, { ylabel: state.distribution === "normal" ? "密度" : "確率" });
+  typesetMath();
 }
 
 function renderApproximation() {
@@ -481,13 +502,14 @@ function renderApproximation() {
   dom.approxNValue.textContent = n;
   dom.approxPValue.textContent = fmt(p, 2);
   dom.approxGrid.innerHTML = [
-    statCard("平均 np", fmt(mu)),
-    statCard("分散 np(1-p)", fmt(sigma ** 2)),
+    statCard("平均 \\(np\\)", fmt(mu)),
+    statCard("分散 \\(np(1-p)\\)", fmt(sigma ** 2)),
     statCard("標準偏差", fmt(sigma)),
     statCard("近似条件", n * p >= 5 && n * (1 - p) >= 5 ? "おおむね良い" : "注意が必要"),
   ].join("");
-  dom.approxChip.textContent = `np=${fmt(n * p, 1)}, n(1-p)=${fmt(n * (1 - p), 1)}`;
+  dom.approxChip.innerHTML = `\\(np=${fmt(n * p, 1)}\\), \\(n(1-p)=${fmt(n * (1 - p), 1)}\\)`;
   drawApproximation(n, p, mu, sigma);
+  typesetMath();
 }
 
 function drawApproximation(n, p, mu, sigma) {
@@ -616,6 +638,7 @@ function init() {
   renderDistributionControls();
   bindEvents();
   renderAll();
+  typesetMath();
 }
 
 init();

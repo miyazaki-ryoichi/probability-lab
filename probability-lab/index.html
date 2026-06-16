@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>確率・統計 可視化ラボ</title>
     <link rel="stylesheet" href="styles.css" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
+        },
+        startup: {
+          typeset: false,
+        },
+      };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <script defer src="app.js"></script>
   </head>
   <body>
     <div class="app">
@@ -143,11 +156,11 @@
                 <output id="prevalence-value"></output>
               </div>
               <div class="control-row">
-                <label>感度 P(+|病気) <input id="sensitivity" type="range" min="50" max="100" step="1" value="95" /></label>
+                <label>感度 \(P(+\mid\text{病気})\) <input id="sensitivity" type="range" min="50" max="100" step="1" value="95" /></label>
                 <output id="sensitivity-value"></output>
               </div>
               <div class="control-row">
-                <label>特異度 P(-|健康) <input id="specificity" type="range" min="50" max="100" step="1" value="90" /></label>
+                <label>特異度 \(P(-\mid\text{健康})\) <input id="specificity" type="range" min="50" max="100" step="1" value="90" /></label>
                 <output id="specificity-value"></output>
               </div>
               <div class="result-card" id="bayes-result"></div>
@@ -169,7 +182,7 @@
             <h3>考察事項</h3>
             <ul>
               <li>検査精度が高くても、陽性者の中に本当に病気の人が少ない場合があるのはなぜか。</li>
-              <li>P(陽性|病気) と P(病気|陽性) は何が違うか。</li>
+              <li>\(P(\text{陽性}\mid\text{病気})\) と \(P(\text{病気}\mid\text{陽性})\) は何が違うか。</li>
               <li>有病率が低い集団と高い集団では、同じ検査結果の意味はどう変わるか。</li>
               <li>ベイズの定理を「式」ではなく「人数の絞り込み」として説明するとどうなるか。</li>
             </ul>
@@ -211,7 +224,7 @@
               <li>確率変数は「結果そのもの」ではなく、結果に数値を対応させるものだと説明できるか。</li>
               <li>期待値は「最も起こりやすい値」と同じとは限らない。どんな例があるか。</li>
               <li>分散が同じでも、分布の形が違えば解釈は変わるか。</li>
-              <li>E(aX+b) と V(aX+b) はそれぞれどう変化するか。特に分散に b が効かない理由は何か。</li>
+              <li>\(E(aX+b)\) と \(V(aX+b)\) はそれぞれどう変化するか。特に分散に \(b\) が効かない理由は何か。</li>
             </ul>
           </section>
         </section>
@@ -226,7 +239,7 @@
 
           <div class="layout two">
             <section class="panel">
-              <h3>二項分布 B(n, p)</h3>
+              <h3>二項分布 \(B(n, p)\)</h3>
               <div class="control-row">
                 <label>試行回数 n <input id="approx-n" type="range" min="5" max="200" step="1" value="30" /></label>
                 <output id="approx-n-value"></output>
@@ -254,15 +267,13 @@
             <h3>考察事項</h3>
             <ul>
               <li>n が大きくなると、二項分布の形はどのように変化するか。</li>
-              <li>p が 0.5 から離れると、正規分布で近似しにくくなるのはなぜか。</li>
-              <li>np と n(1-p) が十分大きい、という条件は何を意味しているか。</li>
+              <li>\(p\) が \(0.5\) から離れると、正規分布で近似しにくくなるのはなぜか。</li>
+              <li>\(np\) と \(n(1-p)\) が十分大きい、という条件は何を意味しているか。</li>
               <li>離散分布を連続分布で近似するとき、連続性補正はなぜ必要か。</li>
             </ul>
           </section>
         </section>
       </main>
     </div>
-
-    <script src="app.js"></script>
   </body>
 </html>

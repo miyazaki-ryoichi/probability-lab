@@ -355,6 +355,12 @@ th {
   background: #f6fbfb;
   border: 1px solid #cae1e1;
   line-height: 1.7;
+  overflow-x: auto;
+}
+
+.equation mjx-container,
+.result-card mjx-container {
+  margin: 6px 0;
 }
 
 .mini-table {
