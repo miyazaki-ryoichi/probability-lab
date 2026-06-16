@@ -1,6 +1,7 @@
 const state = {
   data: [42, 48, 52, 53, 55, 58, 61, 62, 63, 64, 66, 68, 70, 72, 72, 73, 75, 78, 82, 88],
   binWidth: 10,
+  affine: { a: 2, b: 10 },
   points: [],
   dragIndex: null,
   distribution: "binomial",
@@ -20,6 +21,13 @@ const dom = {
   statsGrid: $("#stats-grid"),
   statsCount: $("#stats-count"),
   representativeNotes: $("#representative-notes"),
+  affineA: $("#affine-a"),
+  affineB: $("#affine-b"),
+  affineAValue: $("#affine-a-value"),
+  affineBValue: $("#affine-b-value"),
+  affineGrid: $("#affine-grid"),
+  affineCanvas: $("#affine-canvas"),
+  standardTable: $("#standard-table"),
   frequencyTable: $("#frequency-table"),
   histogram: $("#histogram"),
   scatter: $("#scatter"),
@@ -166,6 +174,43 @@ function drawBars(canvas, items, options = {}) {
   if (options.ylabel) ctx.fillText(options.ylabel, padding + 4, padding - 14);
 }
 
+function drawDotLine(ctx, values, width, y, min, max, color, label) {
+  const padding = 48;
+  const scale = (width - padding * 2) / Math.max(1e-9, max - min);
+  const xAt = (value) => padding + (value - min) * scale;
+
+  ctx.strokeStyle = "#d8e1e7";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, y);
+  ctx.lineTo(width - padding, y);
+  ctx.stroke();
+
+  ctx.fillStyle = "#607080";
+  ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+  ctx.fillText(label, padding, y - 30);
+  ctx.fillText(fmt(min, 1), padding - 8, y + 28);
+  ctx.fillText(fmt(max, 1), width - padding - 20, y + 28);
+
+  ctx.fillStyle = color;
+  values.forEach((value, index) => {
+    const jitter = ((index % 5) - 2) * 3;
+    ctx.beginPath();
+    ctx.arc(xAt(value), y + jitter, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawAffineCanvas(data, transformed) {
+  const { ctx, width, height } = clearCanvas(dom.affineCanvas);
+  const allValues = [...data, ...transformed];
+  const min = Math.min(...allValues);
+  const max = Math.max(...allValues);
+  const margin = Math.max(5, (max - min) * 0.08);
+  drawDotLine(ctx, data, width, height * 0.34, min - margin, max + margin, "#2f6ed3", "元のデータ X");
+  drawDotLine(ctx, transformed, width, height * 0.72, min - margin, max + margin, "#137d7d", "変換後 Y = aX + b");
+}
+
 function renderStats() {
   const values = parseNumbers(dom.dataInput.value);
   state.data = values.length ? values : state.data;
@@ -190,6 +235,7 @@ function renderStats() {
   ].join("");
   dom.statsCount.textContent = `${data.length}件`;
   renderRepresentativeNotes(data, avg, med, modeInfo);
+  renderAffineAndStandardization(data, avg, vari, sd);
 
   const min = Math.floor(Math.min(...data) / state.binWidth) * state.binWidth;
   const max = Math.ceil((Math.max(...data) + 1) / state.binWidth) * state.binWidth;
@@ -224,6 +270,52 @@ function renderStats() {
     </tbody>
   `;
   typesetMath();
+}
+
+function renderAffineAndStandardization(data, avg, vari, sd) {
+  const a = Number(dom.affineA.value);
+  const b = Number(dom.affineB.value);
+  state.affine = { a, b };
+  dom.affineAValue.textContent = fmt(a, 1);
+  dom.affineBValue.textContent = fmt(b, 0);
+
+  const transformed = data.map((value) => a * value + b);
+  const transformedMean = mean(transformed);
+  const transformedVariance = variance(transformed);
+  const expectedByFormula = a * avg + b;
+  const varianceByFormula = a ** 2 * vari;
+
+  dom.affineGrid.innerHTML = [
+    statCard("\\(E[X]\\)", fmt(avg)),
+    statCard("\\(V[X]\\)", fmt(vari)),
+    statCard("\\(E[Y]=aE[X]+b\\)", fmt(expectedByFormula)),
+    statCard("\\(V[Y]=a^2V[X]\\)", fmt(varianceByFormula)),
+    statCard("実際の \\(Y\\) の平均", fmt(transformedMean)),
+    statCard("実際の \\(Y\\) の分散", fmt(transformedVariance)),
+  ].join("");
+  drawAffineCanvas(data, transformed);
+
+  const sorted = [...data].sort((x, y) => x - y);
+  const sample = sorted
+    .filter((_, index) => {
+      const positions = [0, Math.floor((sorted.length - 1) / 4), Math.floor((sorted.length - 1) / 2), Math.floor(((sorted.length - 1) * 3) / 4), sorted.length - 1];
+      return positions.includes(index);
+    })
+    .filter((value, index, values) => values.indexOf(value) === index);
+
+  dom.standardTable.innerHTML = `
+    <thead><tr><th>値 \\(x\\)</th><th>標準化 \\(z\\)</th><th>偏差値 \\(T\\)</th><th>読み取り</th></tr></thead>
+    <tbody>
+      ${sample
+        .map((value) => {
+          const z = sd === 0 ? 0 : (value - avg) / sd;
+          const deviationScore = 50 + 10 * z;
+          const reading = z > 0 ? "平均より上" : z < 0 ? "平均より下" : "平均と同じ";
+          return `<tr><td>${fmt(value)}</td><td>${fmt(z, 2)}</td><td>${fmt(deviationScore, 1)}</td><td>${reading}</td></tr>`;
+        })
+        .join("")}
+    </tbody>
+  `;
 }
 
 function renderRepresentativeNotes(data, avg, med, modeInfo) {
@@ -620,6 +712,7 @@ function bindEvents() {
 
   dom.dataInput.addEventListener("input", renderStats);
   dom.binWidth.addEventListener("input", renderStats);
+  [dom.affineA, dom.affineB].forEach((input) => input.addEventListener("input", renderStats));
   $("#load-skewed").addEventListener("click", () => setData([20, 22, 24, 25, 26, 28, 30, 31, 33, 34, 35, 36, 39, 41, 46, 51, 59, 68, 81, 96]));
   $("#load-bimodal").addEventListener("click", () => setData([28, 30, 31, 33, 35, 36, 38, 40, 42, 44, 70, 72, 74, 76, 78, 79, 81, 83, 85, 88]));
   $("#load-outlier").addEventListener("click", () => setData([48, 50, 51, 52, 54, 55, 56, 56, 57, 58, 59, 60, 62, 63, 64, 66, 67, 68, 70, 130]));

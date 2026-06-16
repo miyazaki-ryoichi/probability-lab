@@ -92,6 +92,58 @@
             <div class="definition-grid" id="representative-notes"></div>
           </section>
 
+          <section class="panel transform-panel">
+            <div class="panel-title">
+              <h3>一次変換 \(Y=aX+b\)</h3>
+              <span class="chip">期待値と分散の変化</span>
+            </div>
+            <div class="layout two transform-layout">
+              <div>
+                <div class="control-row">
+                  <label>
+                    係数 \(a\)
+                    <input id="affine-a" type="range" min="-3" max="3" step="0.1" value="2" />
+                  </label>
+                  <output id="affine-a-value">2</output>
+                </div>
+                <div class="control-row">
+                  <label>
+                    定数 \(b\)
+                    <input id="affine-b" type="range" min="-50" max="50" step="1" value="10" />
+                  </label>
+                  <output id="affine-b-value">10</output>
+                </div>
+                <div class="stats-grid" id="affine-grid"></div>
+              </div>
+              <div>
+                <canvas id="affine-canvas" width="760" height="320"></canvas>
+                <p class="caption">上段が元の \(X\)、下段が変換後の \(Y=aX+b\) です。</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel standard-panel">
+            <div class="panel-title">
+              <h3>標準化と偏差値</h3>
+              <span class="chip">平均との差を標準偏差で測る</span>
+            </div>
+            <div class="standard-grid">
+              <article class="definition-card">
+                <h4>標準化</h4>
+                <div class="formula-line">\[z=\frac{x-\bar{x}}{s}\]</div>
+                <p>\(z\) は、値 \(x\) が平均から標準偏差何個分離れているかを表します。</p>
+              </article>
+              <article class="definition-card">
+                <h4>偏差値</h4>
+                <div class="formula-line">\[T=50+10z\]</div>
+                <p>平均を50、標準偏差を10に変換した値です。異なるテストの点数を比べやすくします。</p>
+              </article>
+              <div class="table-wrap standard-table-wrap">
+                <table id="standard-table"></table>
+              </div>
+            </div>
+          </section>
+
           <section class="prompt-panel">
             <h3>考察事項</h3>
             <ul>
@@ -99,6 +151,8 @@
               <li>外れ値を1つ加えたとき、平均と中央値のどちらが大きく変化するか。</li>
               <li>階級幅を変えると、ヒストグラムから受ける印象はどう変わるか。</li>
               <li>分散と標準偏差は「何がどのくらい散らばっている」ことを表しているか。</li>
+              <li>\(Y=aX+b\) としたとき、平均は \(a\) と \(b\) の両方で変わるが、分散には \(b\) が効かないのはなぜか。</li>
+              <li>標準化後の値 \(z\) と偏差値 \(T\) は、それぞれ何を比較しやすくしているか。</li>
             </ul>
           </section>
         </section>

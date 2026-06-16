@@ -306,6 +306,15 @@ canvas {
   margin-top: 14px;
 }
 
+.transform-panel,
+.standard-panel {
+  margin-top: 14px;
+}
+
+.transform-layout {
+  align-items: start;
+}
+
 .definition-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -340,6 +349,26 @@ canvas {
 
 .sorted-data {
   word-break: break-word;
+}
+
+#affine-canvas {
+  height: 320px;
+}
+
+.caption {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.standard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.standard-table-wrap {
+  grid-column: 1 / -1;
 }
 
 .table-wrap {
@@ -467,6 +496,14 @@ th {
 
   .definition-grid {
     grid-template-columns: 1fr;
+  }
+
+  .standard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .standard-table-wrap {
+    grid-column: auto;
   }
 
   h2 {
