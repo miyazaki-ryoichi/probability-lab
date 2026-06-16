@@ -19,9 +19,14 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background: var(--bg);
   color: var(--ink);
 }
@@ -39,12 +44,11 @@ button {
 .app {
   display: grid;
   grid-template-columns: 270px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sidebar {
-  position: sticky;
-  top: 0;
   height: 100vh;
   overflow-y: auto;
   background: var(--sidebar);
@@ -124,6 +128,8 @@ button {
 .main {
   padding: 24px;
   overflow: auto;
+  height: 100vh;
+  min-width: 0;
 }
 
 .view {
@@ -501,12 +507,26 @@ th {
 }
 
 @media (max-width: 980px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
   .app {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .sidebar {
     position: static;
+    height: auto;
+    overflow: visible;
+  }
+
+  .main {
     height: auto;
     overflow: visible;
   }
