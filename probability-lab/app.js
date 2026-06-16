@@ -19,6 +19,7 @@ const dom = {
   binWidthValue: $("#bin-width-value"),
   statsGrid: $("#stats-grid"),
   statsCount: $("#stats-count"),
+  representativeNotes: $("#representative-notes"),
   frequencyTable: $("#frequency-table"),
   histogram: $("#histogram"),
   scatter: $("#scatter"),
@@ -79,18 +80,23 @@ function median(values) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function mode(values) {
+function modes(values) {
   const counts = new Map();
   values.forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
-  let bestValue = values[0];
   let bestCount = 0;
-  counts.forEach((count, value) => {
-    if (count > bestCount) {
-      bestValue = value;
-      bestCount = count;
-    }
+  counts.forEach((count) => {
+    bestCount = Math.max(bestCount, count);
   });
-  return bestCount <= 1 ? "なし" : fmt(bestValue);
+  const valuesWithBestCount = [...counts.entries()]
+    .filter(([, count]) => count === bestCount)
+    .map(([value]) => value)
+    .sort((a, b) => a - b);
+  return { values: bestCount <= 1 ? [] : valuesWithBestCount, count: bestCount };
+}
+
+function mode(values) {
+  const result = modes(values);
+  return result.values.length ? result.values.map((value) => fmt(value)).join(", ") : "なし";
 }
 
 function statCard(label, value) {
@@ -167,20 +173,23 @@ function renderStats() {
   dom.binWidthValue.textContent = state.binWidth;
   const data = state.data;
   const avg = mean(data);
+  const med = median(data);
+  const modeInfo = modes(data);
   const vari = variance(data);
   const sd = Math.sqrt(vari);
 
   dom.statsGrid.innerHTML = [
     statCard("データ数", data.length),
     statCard("平均", fmt(avg)),
-    statCard("中央値", fmt(median(data))),
-    statCard("最頻値", mode(data)),
+    statCard("中央値", fmt(med)),
+    statCard("最頻値", modeInfo.values.length ? modeInfo.values.map((value) => fmt(value)).join(", ") : "なし"),
     statCard("分散", fmt(vari)),
     statCard("標準偏差", fmt(sd)),
     statCard("最小値", fmt(Math.min(...data))),
     statCard("最大値", fmt(Math.max(...data))),
   ].join("");
   dom.statsCount.textContent = `${data.length}件`;
+  renderRepresentativeNotes(data, avg, med, modeInfo);
 
   const min = Math.floor(Math.min(...data) / state.binWidth) * state.binWidth;
   const max = Math.ceil((Math.max(...data) + 1) / state.binWidth) * state.binWidth;
@@ -213,6 +222,41 @@ function renderStats() {
         )
         .rows.join("")}
     </tbody>
+  `;
+  typesetMath();
+}
+
+function renderRepresentativeNotes(data, avg, med, modeInfo) {
+  const sorted = [...data].sort((a, b) => a - b);
+  const n = sorted.length;
+  const medianPosition =
+    n % 2
+      ? `\\(x_{(${n}+1)/2}=x_${(n + 1) / 2}\\)`
+      : `\\(\\frac{x_{${n / 2}}+x_${n / 2 + 1}}{2}\\)`;
+  const modeText = modeInfo.values.length
+    ? `このデータでは ${modeInfo.values.map((value) => fmt(value)).join(", ")} が ${modeInfo.count} 回${modeInfo.values.length > 1 ? "ずつ" : ""}出ているため、最頻値です。`
+    : "全ての値の出現回数が1回なので、このデータでは最頻値はありません。";
+
+  dom.representativeNotes.innerHTML = `
+    <article class="definition-card">
+      <h4>平均値</h4>
+      <div class="formula-line">\\[\\bar{x}=\\frac{x_1+x_2+\\cdots+x_n}{n}\\]</div>
+      <p>全ての値を合計し、データ数で割った値です。現在の平均は <strong>${fmt(avg)}</strong> です。</p>
+    </article>
+    <article class="definition-card">
+      <h4>中央値</h4>
+      <div class="formula-line">${medianPosition}</div>
+      <p>データを小さい順に並べたとき中央にくる値です。現在の中央値は <strong>${fmt(med)}</strong> です。</p>
+    </article>
+    <article class="definition-card">
+      <h4>最頻値</h4>
+      <div class="formula-line">\\[\\operatorname{mode}(X)=\\text{最も出現回数が多い値}\\]</div>
+      <p>${modeText}</p>
+    </article>
+    <article class="definition-card wide">
+      <h4>並べ替えたデータ</h4>
+      <p class="sorted-data">${sorted.map((value) => fmt(value)).join(", ")}</p>
+    </article>
   `;
 }
 

@@ -302,6 +302,46 @@ canvas {
   font-size: 20px;
 }
 
+.representative-panel {
+  margin-top: 14px;
+}
+
+.definition-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.definition-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfe;
+  padding: 12px;
+  line-height: 1.65;
+}
+
+.definition-card.wide {
+  grid-column: 1 / -1;
+}
+
+.definition-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.definition-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.formula-line {
+  overflow-x: auto;
+}
+
+.sorted-data {
+  word-break: break-word;
+}
+
 .table-wrap {
   max-height: 220px;
   overflow: auto;
@@ -422,6 +462,10 @@ th {
   }
 
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .definition-grid {
     grid-template-columns: 1fr;
   }
 
