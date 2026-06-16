@@ -377,6 +377,11 @@ canvas {
   overflow-x: auto;
 }
 
+.formula-line mjx-container[jax="CHTML"][display="true"] {
+  font-size: 116%;
+  margin: 4px 0 8px;
+}
+
 .sorted-data {
   word-break: break-word;
 }

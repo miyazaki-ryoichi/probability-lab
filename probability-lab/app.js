@@ -384,8 +384,8 @@ function renderRepresentativeNotes(data, avg, med, modeInfo) {
   const n = sorted.length;
   const medianPosition =
     n % 2
-      ? `\\(x_{(${n}+1)/2}=x_{${(n + 1) / 2}}\\)`
-      : `\\(\\frac{x_{${n / 2}}+x_{${n / 2 + 1}}}{2}\\)`;
+      ? `\\[\\displaystyle x_{(${n}+1)/2}=x_{${(n + 1) / 2}}\\]`
+      : `\\[\\displaystyle \\frac{x_{${n / 2}}+x_{${n / 2 + 1}}}{2}\\]`;
   const modeText = modeInfo.values.length
     ? `このデータでは ${modeInfo.values.map((value) => fmt(value)).join(", ")} が ${modeInfo.count} 回${modeInfo.values.length > 1 ? "ずつ" : ""}出ているため、最頻値です。`
     : "全ての値の出現回数が1回なので、このデータでは最頻値はありません。";
@@ -393,7 +393,7 @@ function renderRepresentativeNotes(data, avg, med, modeInfo) {
   dom.representativeNotes.innerHTML = `
     <article class="definition-card">
       <h4>平均値</h4>
-      <div class="formula-line">\\[\\bar{x}=\\frac{x_1+x_2+\\cdots+x_n}{n}\\]</div>
+      <div class="formula-line">\\[\\displaystyle \\bar{x}=\\frac{x_1+x_2+\\cdots+x_n}{n}\\]</div>
       <p>全ての値を合計し、データ数で割った値です。現在の平均は <strong>${fmt(avg)}</strong> です。</p>
     </article>
     <article class="definition-card">
