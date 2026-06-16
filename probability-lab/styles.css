@@ -380,6 +380,31 @@ canvas {
   border-radius: 8px;
 }
 
+.data-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.data-actions button,
+.delete-point {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  padding: 7px 10px;
+  font-weight: 700;
+}
+
+.point-input {
+  width: 86px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: right;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -4,6 +4,7 @@ const state = {
   affine: { a: 2, b: 10 },
   points: [],
   dragIndex: null,
+  pointEditTimer: null,
   distribution: "binomial",
   dist: { n: 12, p: 0.35, lambda: 4, mu: 0, sigma: 1.4, a: 2, b: 3 },
   approx: { n: 30, p: 0.4, continuity: true },
@@ -34,6 +35,8 @@ const dom = {
   regressionGrid: $("#regression-grid"),
   regressionEquation: $("#regression-equation"),
   correlationFormulas: $("#correlation-formulas"),
+  addPoint: $("#add-point"),
+  resetPoints: $("#reset-points"),
   pointTable: $("#point-table"),
   population: $("#population"),
   prevalence: $("#prevalence"),
@@ -65,6 +68,15 @@ function fmt(value, digits = 3) {
   if (!Number.isFinite(value)) return "-";
   const rounded = Number(value.toFixed(digits));
   return rounded.toLocaleString("ja-JP");
+}
+
+function inputValue(value) {
+  if (!Number.isFinite(value)) return "";
+  return String(Math.round(value * 10) / 10);
+}
+
+function clampPointValue(value) {
+  return Math.max(0, Math.min(100, value));
 }
 
 function parseNumbers(text) {
@@ -370,6 +382,33 @@ function createPoints(type = "positive") {
   renderCorrelation();
 }
 
+function addEditablePoint() {
+  const last = state.points[state.points.length - 1] || { x: 50, y: 50 };
+  state.points.push({
+    x: clampPointValue(last.x + 4),
+    y: clampPointValue(last.y + 4),
+  });
+  renderCorrelation();
+}
+
+function deleteEditablePoint(index) {
+  if (state.points.length <= 3) return;
+  state.points.splice(index, 1);
+  renderCorrelation();
+}
+
+function updatePointFromInput(input, shouldRender = true) {
+  const index = Number(input.dataset.index);
+  const axis = input.dataset.axis;
+  const value = Number(input.value);
+  if (!Number.isFinite(value) || !state.points[index] || !["x", "y"].includes(axis)) {
+    if (shouldRender) renderCorrelation();
+    return;
+  }
+  state.points[index][axis] = clampPointValue(value);
+  if (shouldRender) renderCorrelation();
+}
+
 function regression(points) {
   const xs = points.map((point) => point.x);
   const ys = points.map((point) => point.y);
@@ -381,11 +420,11 @@ function regression(points) {
   const vx = sxx / points.length;
   const vy = syy / points.length;
   const cov = sxy / points.length;
-  const slope = sxy / sxx;
-  const intercept = ybar - slope * xbar;
-  const inverseSlope = sxy / syy;
-  const inverseIntercept = xbar - inverseSlope * ybar;
-  const r = sxy / Math.sqrt(sxx * syy);
+  const slope = sxx === 0 ? NaN : sxy / sxx;
+  const intercept = Number.isFinite(slope) ? ybar - slope * xbar : NaN;
+  const inverseSlope = syy === 0 ? NaN : sxy / syy;
+  const inverseIntercept = Number.isFinite(inverseSlope) ? xbar - inverseSlope * ybar : NaN;
+  const r = sxx === 0 || syy === 0 ? NaN : sxy / Math.sqrt(sxx * syy);
   return { slope, intercept, inverseSlope, inverseIntercept, r, r2: r ** 2, xbar, ybar, vx, vy, cov };
 }
 
@@ -436,8 +475,19 @@ function renderCorrelation() {
     </article>
   `;
   dom.pointTable.innerHTML = `
-    <table><thead><tr><th>#</th><th>x</th><th>y</th></tr></thead><tbody>
-      ${points.map((point, index) => `<tr><td>${index + 1}</td><td>${fmt(point.x, 1)}</td><td>${fmt(point.y, 1)}</td></tr>`).join("")}
+    <table><thead><tr><th>#</th><th>x</th><th>y</th><th>操作</th></tr></thead><tbody>
+      ${points
+        .map(
+          (point, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td><input class="point-input" type="number" min="0" max="100" step="0.1" data-index="${index}" data-axis="x" value="${inputValue(point.x)}" /></td>
+              <td><input class="point-input" type="number" min="0" max="100" step="0.1" data-index="${index}" data-axis="y" value="${inputValue(point.y)}" /></td>
+              <td><button class="delete-point" type="button" data-index="${index}" ${points.length <= 3 ? "disabled" : ""}>削除</button></td>
+            </tr>
+          `,
+        )
+        .join("")}
     </tbody></table>
   `;
   drawScatter(result);
@@ -467,16 +517,18 @@ function drawScatter(result) {
   ctx.fillText("x", width - padding + 12, height - padding + 4);
   ctx.fillText("y", padding - 16, padding - 12);
 
-  const lineStart = pointToCanvas({ x: 0, y: result.intercept }, width, height, padding);
-  const lineEnd = pointToCanvas({ x: 100, y: result.slope * 100 + result.intercept }, width, height, padding);
-  ctx.strokeStyle = "#c13d37";
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(lineStart.x, lineStart.y);
-  ctx.lineTo(lineEnd.x, lineEnd.y);
-  ctx.stroke();
+  if (Number.isFinite(result.slope) && Number.isFinite(result.intercept)) {
+    const lineStart = pointToCanvas({ x: 0, y: result.intercept }, width, height, padding);
+    const lineEnd = pointToCanvas({ x: 100, y: result.slope * 100 + result.intercept }, width, height, padding);
+    ctx.strokeStyle = "#c13d37";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(lineStart.x, lineStart.y);
+    ctx.lineTo(lineEnd.x, lineEnd.y);
+    ctx.stroke();
+  }
 
-  if (Math.abs(result.inverseSlope) > 1e-9) {
+  if (Number.isFinite(result.inverseSlope) && Math.abs(result.inverseSlope) > 1e-9) {
     const inverseLineStart = pointToCanvas({ x: 0, y: (0 - result.inverseIntercept) / result.inverseSlope }, width, height, padding);
     const inverseLineEnd = pointToCanvas({ x: 100, y: (100 - result.inverseIntercept) / result.inverseSlope }, width, height, padding);
     ctx.strokeStyle = "#137d7d";
@@ -797,6 +849,26 @@ function bindEvents() {
   dom.scatter.addEventListener("pointerup", () => {
     state.dragIndex = null;
     renderCorrelation();
+  });
+  dom.addPoint.addEventListener("click", addEditablePoint);
+  dom.resetPoints.addEventListener("click", () => createPoints("positive"));
+  dom.pointTable.addEventListener("input", (event) => {
+    const input = event.target.closest(".point-input");
+    if (!input) return;
+    updatePointFromInput(input, false);
+    clearTimeout(state.pointEditTimer);
+    state.pointEditTimer = setTimeout(renderCorrelation, 250);
+  });
+  dom.pointTable.addEventListener("change", (event) => {
+    const input = event.target.closest(".point-input");
+    if (!input) return;
+    clearTimeout(state.pointEditTimer);
+    updatePointFromInput(input);
+  });
+  dom.pointTable.addEventListener("click", (event) => {
+    const button = event.target.closest(".delete-point");
+    if (!button) return;
+    deleteEditablePoint(Number(button.dataset.index));
   });
 
   [dom.population, dom.prevalence, dom.sensitivity, dom.specificity].forEach((input) => input.addEventListener("input", renderBayes));

@@ -180,9 +180,16 @@
             </section>
 
             <section class="panel">
-              <h3>回帰の結果</h3>
+              <div class="panel-title">
+                <h3>回帰の結果と生データ</h3>
+                <span class="chip">表を編集できます</span>
+              </div>
               <div class="stats-grid" id="regression-grid"></div>
               <div class="equation" id="regression-equation"></div>
+              <div class="data-actions">
+                <button id="add-point" type="button">点を追加</button>
+                <button id="reset-points" type="button">初期データに戻す</button>
+              </div>
               <div class="mini-table" id="point-table"></div>
             </section>
           </div>
