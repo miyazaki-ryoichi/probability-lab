@@ -43,6 +43,10 @@ button {
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
   background: var(--sidebar);
   color: #eef6f8;
   padding: 22px 18px;
@@ -503,6 +507,8 @@ th {
 
   .sidebar {
     position: static;
+    height: auto;
+    overflow: visible;
   }
 
   .nav {
