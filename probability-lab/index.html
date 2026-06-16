@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>確率・統計 可視化ラボ</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">P</span>
+          <div>
+            <h1>確率・統計 可視化ラボ</h1>
+            <p>データ、確率、分布を操作して考える授業用Web教材</p>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="教材メニュー">
+          <button class="nav-button active" type="button" data-view="stats">データと代表値</button>
+          <button class="nav-button" type="button" data-view="correlation">相関と回帰</button>
+          <button class="nav-button" type="button" data-view="bayes">条件付き確率</button>
+          <button class="nav-button" type="button" data-view="distributions">確率分布</button>
+          <button class="nav-button" type="button" data-view="normal">二項分布と正規分布</button>
+        </nav>
+
+        <section class="teacher-note">
+          <p class="label">授業での使い方</p>
+          <p>スライダーやデータを少しだけ変え、数値と図がどう変わるかを学生に予想させてから操作すると効果的です。</p>
+        </section>
+      </aside>
+
+      <main class="main">
+        <section class="view active" id="stats">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Frequency, Mean, Variance</p>
+              <h2>度数分布表・代表値・平均と分散</h2>
+            </div>
+            <div class="actions">
+              <button id="load-skewed" type="button">偏ったデータ</button>
+              <button id="load-bimodal" type="button">山が2つのデータ</button>
+              <button id="load-outlier" type="button">外れ値あり</button>
+            </div>
+          </header>
+
+          <div class="layout two">
+            <section class="panel">
+              <h3>データ入力</h3>
+              <textarea id="data-input" spellcheck="false"></textarea>
+              <div class="control-row">
+                <label>
+                  階級幅
+                  <input id="bin-width" type="range" min="1" max="20" value="10" />
+                </label>
+                <output id="bin-width-value">10</output>
+              </div>
+              <div class="stats-grid" id="stats-grid"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>ヒストグラム</h3>
+                <span class="chip" id="stats-count"></span>
+              </div>
+              <canvas id="histogram" width="760" height="360"></canvas>
+              <div class="table-wrap">
+                <table id="frequency-table"></table>
+              </div>
+            </section>
+          </div>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>平均値、中央値、最頻値が一致しないとき、どの代表値がデータの特徴をよく表しているか。</li>
+              <li>外れ値を1つ加えたとき、平均と中央値のどちらが大きく変化するか。</li>
+              <li>階級幅を変えると、ヒストグラムから受ける印象はどう変わるか。</li>
+              <li>分散と標準偏差は「何がどのくらい散らばっている」ことを表しているか。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="view" id="correlation">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Correlation and Regression</p>
+              <h2>相関・回帰直線</h2>
+            </div>
+            <div class="actions">
+              <button id="corr-positive" type="button">正の相関</button>
+              <button id="corr-negative" type="button">負の相関</button>
+              <button id="corr-outlier" type="button">外れ値を追加</button>
+            </div>
+          </header>
+
+          <div class="layout two">
+            <section class="panel">
+              <div class="panel-title">
+                <h3>散布図</h3>
+                <span class="chip">点をドラッグできます</span>
+              </div>
+              <canvas id="scatter" width="760" height="480"></canvas>
+            </section>
+
+            <section class="panel">
+              <h3>回帰の結果</h3>
+              <div class="stats-grid" id="regression-grid"></div>
+              <div class="equation" id="regression-equation"></div>
+              <div class="mini-table" id="point-table"></div>
+            </section>
+          </div>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>相関係数が大きいことは、必ず因果関係があることを意味するか。</li>
+              <li>外れ値を1点加えると、相関係数と回帰直線はどちらがどの程度変わるか。</li>
+              <li>回帰直線は「全ての点を通る直線」ではない。何を最小にする直線か。</li>
+              <li>同じ相関係数でも、散布図の形が違えば解釈は変わるか。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="view" id="bayes">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Conditional Probability and Bayes</p>
+              <h2>条件付き確率・ベイズの定理</h2>
+            </div>
+          </header>
+
+          <div class="layout two">
+            <section class="panel">
+              <h3>検査の例</h3>
+              <div class="control-row">
+                <label>人数 <input id="population" type="range" min="1000" max="100000" step="1000" value="10000" /></label>
+                <output id="population-value"></output>
+              </div>
+              <div class="control-row">
+                <label>有病率 <input id="prevalence" type="range" min="0.1" max="20" step="0.1" value="2" /></label>
+                <output id="prevalence-value"></output>
+              </div>
+              <div class="control-row">
+                <label>感度 P(+|病気) <input id="sensitivity" type="range" min="50" max="100" step="1" value="95" /></label>
+                <output id="sensitivity-value"></output>
+              </div>
+              <div class="control-row">
+                <label>特異度 P(-|健康) <input id="specificity" type="range" min="50" max="100" step="1" value="90" /></label>
+                <output id="specificity-value"></output>
+              </div>
+              <div class="result-card" id="bayes-result"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>2×2表と人数モデル</h3>
+                <span class="chip">割合ではなく人数で見る</span>
+              </div>
+              <canvas id="bayes-bars" width="760" height="340"></canvas>
+              <div class="table-wrap">
+                <table id="bayes-table"></table>
+              </div>
+            </section>
+          </div>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>検査精度が高くても、陽性者の中に本当に病気の人が少ない場合があるのはなぜか。</li>
+              <li>P(陽性|病気) と P(病気|陽性) は何が違うか。</li>
+              <li>有病率が低い集団と高い集団では、同じ検査結果の意味はどう変わるか。</li>
+              <li>ベイズの定理を「式」ではなく「人数の絞り込み」として説明するとどうなるか。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="view" id="distributions">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Random Variables and Distributions</p>
+              <h2>確率変数・確率分布・性質</h2>
+            </div>
+            <div class="segmented" role="tablist" aria-label="分布選択">
+              <button class="segment active" type="button" data-dist="binomial">二項</button>
+              <button class="segment" type="button" data-dist="poisson">ポアソン</button>
+              <button class="segment" type="button" data-dist="normal">正規</button>
+            </div>
+          </header>
+
+          <div class="layout two">
+            <section class="panel">
+              <h3>パラメータ</h3>
+              <div id="distribution-controls"></div>
+              <div class="stats-grid" id="distribution-grid"></div>
+              <div class="equation" id="distribution-formula"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-title">
+                <h3>確率分布</h3>
+                <span class="chip" id="distribution-chip"></span>
+              </div>
+              <canvas id="distribution-canvas" width="760" height="420"></canvas>
+            </section>
+          </div>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>確率変数は「結果そのもの」ではなく、結果に数値を対応させるものだと説明できるか。</li>
+              <li>期待値は「最も起こりやすい値」と同じとは限らない。どんな例があるか。</li>
+              <li>分散が同じでも、分布の形が違えば解釈は変わるか。</li>
+              <li>E(aX+b) と V(aX+b) はそれぞれどう変化するか。特に分散に b が効かない理由は何か。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="view" id="normal">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Binomial Approximation</p>
+              <h2>二項分布と正規分布の関係</h2>
+            </div>
+          </header>
+
+          <div class="layout two">
+            <section class="panel">
+              <h3>二項分布 B(n, p)</h3>
+              <div class="control-row">
+                <label>試行回数 n <input id="approx-n" type="range" min="5" max="200" step="1" value="30" /></label>
+                <output id="approx-n-value"></output>
+              </div>
+              <div class="control-row">
+                <label>成功確率 p <input id="approx-p" type="range" min="0.05" max="0.95" step="0.01" value="0.4" /></label>
+                <output id="approx-p-value"></output>
+              </div>
+              <label class="check-row">
+                <input id="continuity" type="checkbox" checked />
+                連続性補正を表示
+              </label>
+              <div class="stats-grid" id="approx-grid"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-title">
+                <h3>二項分布の棒グラフと正規曲線</h3>
+                <span class="chip" id="approx-chip"></span>
+              </div>
+              <canvas id="approx-canvas" width="820" height="440"></canvas>
+            </section>
+          </div>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>n が大きくなると、二項分布の形はどのように変化するか。</li>
+              <li>p が 0.5 から離れると、正規分布で近似しにくくなるのはなぜか。</li>
+              <li>np と n(1-p) が十分大きい、という条件は何を意味しているか。</li>
+              <li>離散分布を連続分布で近似するとき、連続性補正はなぜ必要か。</li>
+            </ul>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
