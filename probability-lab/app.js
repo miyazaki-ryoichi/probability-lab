@@ -33,6 +33,7 @@ const dom = {
   scatter: $("#scatter"),
   regressionGrid: $("#regression-grid"),
   regressionEquation: $("#regression-equation"),
+  correlationFormulas: $("#correlation-formulas"),
   pointTable: $("#point-table"),
   population: $("#population"),
   prevalence: $("#prevalence"),
@@ -377,10 +378,15 @@ function regression(points) {
   const sxx = points.reduce((sum, point) => sum + (point.x - xbar) ** 2, 0);
   const syy = points.reduce((sum, point) => sum + (point.y - ybar) ** 2, 0);
   const sxy = points.reduce((sum, point) => sum + (point.x - xbar) * (point.y - ybar), 0);
+  const vx = sxx / points.length;
+  const vy = syy / points.length;
+  const cov = sxy / points.length;
   const slope = sxy / sxx;
   const intercept = ybar - slope * xbar;
+  const inverseSlope = sxy / syy;
+  const inverseIntercept = xbar - inverseSlope * ybar;
   const r = sxy / Math.sqrt(sxx * syy);
-  return { slope, intercept, r, r2: r ** 2, xbar, ybar };
+  return { slope, intercept, inverseSlope, inverseIntercept, r, r2: r ** 2, xbar, ybar, vx, vy, cov };
 }
 
 function renderCorrelation() {
@@ -389,15 +395,45 @@ function renderCorrelation() {
   dom.regressionGrid.innerHTML = [
     statCard("相関係数 \\(r\\)", fmt(result.r, 4)),
     statCard("決定係数 \\(r^2\\)", fmt(result.r2, 4)),
+    statCard("共分散 \\(\\operatorname{Cov}(X,Y)\\)", fmt(result.cov)),
     statCard("\\(x\\) の平均", fmt(result.xbar)),
     statCard("\\(y\\) の平均", fmt(result.ybar)),
+    statCard("\\(x\\) の分散 \\(V[X]\\)", fmt(result.vx)),
   ].join("");
   dom.regressionEquation.innerHTML = `
-    回帰直線:
+    \\(y\\) を \\(x\\) から予測する回帰直線:
     \\[
       y = ${fmt(result.slope, 3)}x ${result.intercept >= 0 ? "+" : "-"} ${fmt(Math.abs(result.intercept), 3)}
     \\]
+    \\(x\\) を \\(y\\) から予測する回帰直線:
+    \\[
+      x = ${fmt(result.inverseSlope, 3)}y ${result.inverseIntercept >= 0 ? "+" : "-"} ${fmt(Math.abs(result.inverseIntercept), 3)}
+    \\]
+    2つの回帰直線は、完全な直線関係でない限り基本的には一致しません。
+    どちらを目的変数として予測するかで、最小にしている誤差の向きが変わります。<br>
     最小二乗法では、\\(\\sum_i (y_i - \\hat{y}_i)^2\\) を最小にします。
+  `;
+  dom.correlationFormulas.innerHTML = `
+    <article class="definition-card">
+      <h4>共分散</h4>
+      <div class="formula-line">\\[\\operatorname{Cov}(X,Y)=\\frac{1}{n}\\sum_{i=1}^{n}(x_i-\\bar{x})(y_i-\\bar{y})\\]</div>
+      <p>現在の値は <strong>${fmt(result.cov)}</strong> です。正なら同じ向き、負なら逆向きに変化しやすいことを表します。</p>
+    </article>
+    <article class="definition-card">
+      <h4>相関係数</h4>
+      <div class="formula-line">\\[r=\\frac{\\operatorname{Cov}(X,Y)}{\\sqrt{V[X]}\\sqrt{V[Y]}}\\]</div>
+      <p>現在の値は <strong>${fmt(result.r, 4)}</strong> です。単位の影響を除いた直線的な関係の強さです。</p>
+    </article>
+    <article class="definition-card">
+      <h4>回帰直線 \(y=ax+b\)</h4>
+      <div class="formula-line">\\[\\hat{y}=ax+b,\\quad a=\\frac{\\operatorname{Cov}(X,Y)}{V[X]},\\quad b=\\bar{y}-a\\bar{x}\\]</div>
+      <p>現在は <strong>\\(a=${fmt(result.slope, 3)}\\)</strong>、<strong>\\(b=${fmt(result.intercept, 3)}\\)</strong> です。</p>
+    </article>
+    <article class="definition-card">
+      <h4>逆向きの回帰直線</h4>
+      <div class="formula-line">\\[\\hat{x}=\\alpha y+\\beta,\\quad \\alpha=\\frac{\\operatorname{Cov}(X,Y)}{V[Y]},\\quad \\beta=\\bar{x}-\\alpha\\bar{y}\\]</div>
+      <p>現在は <strong>\\(\\alpha=${fmt(result.inverseSlope, 3)}\\)</strong>、<strong>\\(\\beta=${fmt(result.inverseIntercept, 3)}\\)</strong> です。</p>
+    </article>
   `;
   dom.pointTable.innerHTML = `
     <table><thead><tr><th>#</th><th>x</th><th>y</th></tr></thead><tbody>
@@ -439,6 +475,23 @@ function drawScatter(result) {
   ctx.moveTo(lineStart.x, lineStart.y);
   ctx.lineTo(lineEnd.x, lineEnd.y);
   ctx.stroke();
+
+  if (Math.abs(result.inverseSlope) > 1e-9) {
+    const inverseLineStart = pointToCanvas({ x: 0, y: (0 - result.inverseIntercept) / result.inverseSlope }, width, height, padding);
+    const inverseLineEnd = pointToCanvas({ x: 100, y: (100 - result.inverseIntercept) / result.inverseSlope }, width, height, padding);
+    ctx.strokeStyle = "#137d7d";
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(inverseLineStart.x, inverseLineStart.y);
+    ctx.lineTo(inverseLineEnd.x, inverseLineEnd.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.fillStyle = "#c13d37";
+  ctx.fillText("赤: y = ax + b", padding + 6, padding + 16);
+  ctx.fillStyle = "#137d7d";
+  ctx.fillText("青破線: x = αy + β", padding + 118, padding + 16);
 
   state.points.forEach((point, index) => {
     const pos = pointToCanvas(point, width, height, padding);
