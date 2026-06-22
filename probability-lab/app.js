@@ -7,8 +7,8 @@ const state = {
   pointEditTimer: null,
   bayesPreset: "covid",
   distribution: "binomial",
-  dist: { n: 12, p: 0.35, lambda: 4, mu: 0, sigma: 1.4, lower: 3, upper: 6 },
-  approx: { n: 30, p: 0.4, x: 12, continuity: true },
+  dist: { n: 100, p: 0.05, lambda: 5, mu: 0, sigma: 1.4, lower: 2, upper: 8 },
+  approx: { n: 30, p: 0.4, x: 12, standardLower: 9, standardUpper: 15, continuity: true },
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -99,14 +99,18 @@ const dom = {
   bayesBars: $("#bayes-bars"),
   distControls: $("#distribution-controls"),
   distGrid: $("#distribution-grid"),
-  distFormula: $("#distribution-formula"),
-  distCanvas: $("#distribution-canvas"),
+  binomialFormula: $("#binomial-formula"),
+  poissonFormula: $("#poisson-formula"),
+  binomialCanvas: $("#binomial-canvas"),
+  poissonCanvas: $("#poisson-canvas"),
   distChip: $("#distribution-chip"),
+  poissonChip: $("#poisson-chip"),
   distLower: $("#dist-lower"),
   distUpper: $("#dist-upper"),
   distLowerValue: $("#dist-lower-value"),
   distUpperValue: $("#dist-upper-value"),
-  distProbability: $("#distribution-probability"),
+  binomialProbability: $("#binomial-probability"),
+  poissonProbability: $("#poisson-probability"),
   distNotes: $("#distribution-notes"),
   distTypeChip: $("#distribution-type-chip"),
   distRelationship: $("#distribution-relationship"),
@@ -123,6 +127,13 @@ const dom = {
   approxLegend: $("#approx-legend"),
   approxRelationship: $("#approx-relationship"),
   normalTableResult: $("#normal-table-result"),
+  standardLower: $("#standard-lower"),
+  standardUpper: $("#standard-upper"),
+  standardLowerZ: $("#standard-lower-z"),
+  standardUpperZ: $("#standard-upper-z"),
+  standardResult: $("#standard-result"),
+  originalNormalCanvas: $("#original-normal-canvas"),
+  standardNormalCanvas: $("#standard-normal-canvas"),
 };
 
 function fmt(value, digits = 3) {
@@ -222,7 +233,7 @@ function drawFrame(ctx, width, height, padding = 42) {
 function drawBars(canvas, items, options = {}) {
   const { ctx, width, height } = clearCanvas(canvas);
   const padding = options.padding || 44;
-  const max = Math.max(1e-9, ...items.map((item) => item.value));
+  const max = options.maxValue || Math.max(1e-9, ...items.map((item) => item.value));
   drawFrame(ctx, width, height, padding);
   const available = width - padding * 2;
   const gap = Math.max(1, Math.min(8, available / items.length / 3));
@@ -753,24 +764,27 @@ function makeControl(id, label, min, max, step, value) {
 }
 
 function renderDistributionControls() {
-  if (state.distribution === "binomial") {
-    dom.distControls.innerHTML =
-      makeControl("dist-n", "試行回数 n", 1, 40, 1, state.dist.n) +
-      makeControl("dist-p", "成功確率 p", 0.01, 0.99, 0.01, state.dist.p);
-  } else if (state.distribution === "poisson") {
-    dom.distControls.innerHTML = makeControl("dist-lambda", "平均発生回数 λ", 0.2, 15, 0.1, state.dist.lambda);
-  } else {
-    dom.distControls.innerHTML =
-      makeControl("dist-mu", "平均 μ", -5, 5, 0.1, state.dist.mu) +
-      makeControl("dist-sigma", "標準偏差 σ", 0.2, 5, 0.1, state.dist.sigma);
-  }
+  dom.distControls.innerHTML =
+    makeControl("dist-n", "二項分布の試行回数 n", 1, 1000, 1, state.dist.n) +
+    makeControl("dist-p", "二項分布の成功確率 p", 0.001, 0.5, 0.001, state.dist.p) +
+    makeControl("dist-lambda", "ポアソン分布の平均 λ", 0.1, 50, 0.1, state.dist.lambda) +
+    `<div class="data-actions"><button id="sync-poisson-lambda" type="button">λ=np に合わせる</button></div>`;
   dom.distControls.querySelectorAll("input").forEach((input) => {
     input.addEventListener("input", () => {
       const key = input.id.replace("dist-", "");
       state.dist[key] = Number(input.value);
-      $(`#${input.id}-value`).textContent = fmt(Number(input.value), 2);
+      $(`#${input.id}-value`).textContent = fmt(Number(input.value), key === "n" ? 0 : 3);
+      if (key === "n" || key === "p") {
+        Object.assign(state.dist, defaultDistributionRange());
+      }
       renderDistribution();
     });
+  });
+  $("#sync-poisson-lambda").addEventListener("click", () => {
+    state.dist.lambda = Number((state.dist.n * state.dist.p).toFixed(3));
+    Object.assign(state.dist, defaultDistributionRange());
+    renderDistributionControls();
+    renderDistribution();
   });
 }
 
@@ -782,44 +796,21 @@ function setRangeInput(input, min, max, step, value) {
 }
 
 function defaultDistributionRange() {
-  if (state.distribution === "binomial") {
-    const center = state.dist.n * state.dist.p;
-    const spread = Math.sqrt(state.dist.n * state.dist.p * (1 - state.dist.p));
-    return {
-      lower: Math.max(0, Math.floor(center - spread)),
-      upper: Math.min(state.dist.n, Math.ceil(center + spread)),
-    };
-  }
-  if (state.distribution === "poisson") {
-    const lambda = state.dist.lambda;
-    return {
-      lower: Math.max(0, Math.floor(lambda - Math.sqrt(lambda))),
-      upper: Math.ceil(lambda + Math.sqrt(lambda)),
-    };
-  }
+  const center = state.dist.n * state.dist.p;
+  const spread = Math.max(
+    Math.sqrt(Math.max(1e-9, state.dist.n * state.dist.p * (1 - state.dist.p))),
+    Math.sqrt(Math.max(1e-9, state.dist.lambda)),
+  );
   return {
-    lower: Number((state.dist.mu - state.dist.sigma).toFixed(1)),
-    upper: Number((state.dist.mu + state.dist.sigma).toFixed(1)),
+    lower: Math.max(0, Math.floor(center - spread)),
+    upper: Math.min(state.dist.n, Math.ceil(center + spread)),
   };
 }
 
 function syncDistributionQueryControls() {
-  let min;
-  let max;
-  let step;
-  if (state.distribution === "binomial") {
-    min = 0;
-    max = state.dist.n;
-    step = 1;
-  } else if (state.distribution === "poisson") {
-    min = 0;
-    max = Math.max(12, Math.ceil(state.dist.lambda + 5 * Math.sqrt(state.dist.lambda)));
-    step = 1;
-  } else {
-    min = state.dist.mu - 4 * state.dist.sigma;
-    max = state.dist.mu + 4 * state.dist.sigma;
-    step = 0.1;
-  }
+  const min = 0;
+  const max = Math.max(state.dist.n, Math.ceil(state.dist.lambda + 5 * Math.sqrt(Math.max(state.dist.lambda, 1e-9))));
+  const step = 1;
 
   state.dist.lower = Math.max(min, Math.min(max, state.dist.lower));
   state.dist.upper = Math.max(min, Math.min(max, state.dist.upper));
@@ -828,43 +819,30 @@ function syncDistributionQueryControls() {
   }
   setRangeInput(dom.distLower, min, max, step, state.dist.lower);
   setRangeInput(dom.distUpper, min, max, step, state.dist.upper);
-  dom.distLowerValue.textContent = fmt(state.dist.lower, state.distribution === "normal" ? 1 : 0);
-  dom.distUpperValue.textContent = fmt(state.dist.upper, state.distribution === "normal" ? 1 : 0);
+  dom.distLowerValue.textContent = fmt(state.dist.lower, 0);
+  dom.distUpperValue.textContent = fmt(state.dist.upper, 0);
 }
 
-function distributionItems() {
-  if (state.distribution === "binomial") {
-    const { n, p } = state.dist;
-    return Array.from({ length: n + 1 }, (_, k) => ({
-      x: k,
-      label: String(k),
-      value: combination(n, k) * p ** k * (1 - p) ** (n - k),
-    }));
+function binomialItems(n, p) {
+  const q = 1 - p;
+  const items = [];
+  let probability = q ** n;
+  for (let k = 0; k <= n; k += 1) {
+    items.push({ x: k, label: String(k), value: probability });
+    probability *= ((n - k) / (k + 1)) * (p / q);
   }
-  if (state.distribution === "poisson") {
-    const lambda = state.dist.lambda;
-    const maxK = Math.max(12, Math.ceil(lambda + 5 * Math.sqrt(lambda)));
-    return Array.from({ length: maxK + 1 }, (_, k) => ({
-      x: k,
-      label: String(k),
-      value: Math.exp(-lambda) * lambda ** k / factorial(k),
-    }));
-  }
-  const { mu, sigma } = state.dist;
-  const count = 80;
-  const min = mu - 4 * sigma;
-  const max = mu + 4 * sigma;
-  return Array.from({ length: count }, (_, index) => {
-    const x = min + ((max - min) * index) / (count - 1);
-    return { x, label: index % 10 === 0 ? fmt(x, 1) : "", value: normalPdf(x, mu, sigma) };
-  });
+  return items;
+}
+
+function poissonItems(lambda, maxK) {
+  return Array.from({ length: maxK + 1 }, (_, k) => ({
+    x: k,
+    label: String(k),
+    value: poissonProbability(lambda, k),
+  }));
 }
 
 function distributionProbability(items, lower, upper) {
-  if (state.distribution === "normal") {
-    const { mu, sigma } = state.dist;
-    return normalCdf(upper, mu, sigma) - normalCdf(lower, mu, sigma);
-  }
   return items
     .filter((item) => item.x >= lower && item.x <= upper)
     .reduce((sum, item) => sum + item.value, 0);
@@ -905,9 +883,9 @@ function approximationGap(n, p, mu, sigma) {
 
 function poissonApproximationGap(n, p, lambda) {
   let total = 0;
-  for (let k = 0; k <= n; k += 1) {
-    total += Math.abs(binomialProbability(n, p, k) - poissonProbability(lambda, k));
-  }
+  binomialItems(n, p).forEach((item) => {
+    total += Math.abs(item.value - poissonProbability(lambda, item.x));
+  });
   return total;
 }
 
@@ -970,9 +948,9 @@ function renderDistributionNotes(meta) {
 }
 
 function renderDistributionRelationship() {
-  const { n, p } = state.dist;
+  const { n, p, lambda } = state.dist;
   const lambdaFromBinomial = n * p;
-  const rareEventGood = n >= 20 && p <= 0.1;
+  const rareEventGood = n >= 50 && p <= 0.1 && Math.abs(lambda - lambdaFromBinomial) < 0.001;
   dom.distRelationship.innerHTML = [
     `<article class="definition-card">
       <h4>二項分布 \\(B(n,p)\\)</h4>
@@ -988,55 +966,62 @@ function renderDistributionRelationship() {
     </article>`,
     `<article class="definition-card wide">
       <h4>関係性: 二項分布の近似としてのポアソン分布</h4>
-      <p>試行回数 \\(n\\) が大きく、成功確率 \\(p\\) が小さく、\\(\\lambda=np\\) が一定とみなせるとき、\\(B(n,p)\\) は \\(\\operatorname{Po}(\\lambda)\\) に近づきます。</p>
-      <p>現在の二項分布では \\(n=${fmt(n, 0)}\\), \\(p=${fmt(p, 2)}\\) なので、\\(\\lambda=np=${fmt(lambdaFromBinomial)}\\) です。</p>
-      <p>近似の見方: ${rareEventGood ? "まれな事象の近似として比較しやすい設定です。" : "近似の考え方は示せますが、典型的には \\(n\\) を大きく、\\(p\\) を小さくするとより分かりやすくなります。"}</p>
+      <p>ポアソン近似とは、\\(n\\) が大きく \\(p\\) が小さい二項分布 \\(B(n,p)\\) を、\\(\\lambda=np\\) のポアソン分布で近似することです。</p>
+      <p>現在の二項分布では \\(n=${fmt(n, 0)}\\), \\(p=${fmt(p, 3)}\\) なので、\\(np=${fmt(lambdaFromBinomial)}\\) です。右のポアソン分布は \\(\\lambda=${fmt(lambda)}\\) です。</p>
+      <p>近似の見方: ${rareEventGood ? "\\(n\\) が大きく \\(p\\) が小さく、\\(\\lambda=np\\) に合っているので比較しやすい設定です。" : "\\(n\\) が大きいだけでは不十分です。\\(p\\) を小さくし、右の \\(\\lambda\\) を \\(np\\) に合わせると近づきます。"}</p>
     </article>`,
   ].join("");
 }
 
 function renderDistribution() {
   syncDistributionQueryControls();
-  const items = distributionItems();
-  let expected;
-  let vari;
-  let formula;
-  let chip;
-  if (state.distribution === "binomial") {
-    expected = state.dist.n * state.dist.p;
-    vari = state.dist.n * state.dist.p * (1 - state.dist.p);
-    formula = "\\[P(X=k) = {}_nC_k p^k(1-p)^{n-k}\\]";
-    chip = "離散型";
-  } else if (state.distribution === "poisson") {
-    expected = state.dist.lambda;
-    vari = state.dist.lambda;
-    formula = "\\[P(X=k)=\\frac{e^{-\\lambda}\\lambda^k}{k!}\\]";
-    chip = "離散型";
-  } else {
-    expected = state.dist.mu;
-    vari = state.dist.sigma ** 2;
-    formula = "\\[f(x)=\\frac{1}{\\sigma\\sqrt{2\\pi}}\\exp\\left(-\\frac{(x-\\mu)^2}{2\\sigma^2}\\right)\\]";
-    chip = "連続型";
-  }
+  const { n, p, lambda } = state.dist;
+  const lambdaFromBinomial = n * p;
+  const binomial = binomialItems(n, p);
+  const maxK = Math.max(n, 12, Math.ceil(lambda + 5 * Math.sqrt(Math.max(lambda, 1e-9))));
+  const poisson = poissonItems(lambda, maxK);
+  const binomialVariance = n * p * (1 - p);
+  const poissonVariance = lambda;
+  const gap = poissonApproximationGap(n, p, lambda);
+  const rareEventGood = n >= 50 && p <= 0.1 && Math.abs(lambda - lambdaFromBinomial) < 0.001;
   dom.distGrid.innerHTML = [
-    statCard("期待値 \\(E(X)\\)", fmt(expected)),
-    statCard("分散 \\(V(X)\\)", fmt(vari)),
-    statCard("標準偏差", fmt(Math.sqrt(vari))),
-    statCard("性質", `\\(E(aX+b)=aE(X)+b\\)<br>\\(V(aX+b)=a^2V(X)\\)`),
+    statCard("二項分布の平均 \\(np\\)", fmt(lambdaFromBinomial)),
+    statCard("二項分布の分散 \\(np(1-p)\\)", fmt(binomialVariance)),
+    statCard("ポアソン分布の平均 \\(\\lambda\\)", fmt(lambda)),
+    statCard("ポアソン分布の分散 \\(\\lambda\\)", fmt(poissonVariance)),
+    statCard("\\(np\\) と \\(\\lambda\\) の差", fmt(Math.abs(lambdaFromBinomial - lambda))),
+    statCard("2つの分布の差", fmt(gap, 4)),
   ].join("");
-  dom.distFormula.innerHTML = formula;
-  dom.distChip.textContent = chip;
+  dom.binomialFormula.innerHTML = "\\[P(X=k) = {}_nC_k p^k(1-p)^{n-k}\\]";
+  dom.poissonFormula.innerHTML = "\\[P(Y=k)=\\frac{e^{-\\lambda}\\lambda^k}{k!}\\]";
+  dom.distChip.textContent = `\\(np=${fmt(lambdaFromBinomial)}\\)`;
+  dom.poissonChip.innerHTML = `\\(\\operatorname{Po}(${fmt(lambda)})\\)`;
   const lower = Math.min(state.dist.lower, state.dist.upper);
   const upper = Math.max(state.dist.lower, state.dist.upper);
-  const probability = distributionProbability(items, lower, upper);
-  const relation = state.distribution === "normal" ? `P(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)})` : `P(${fmt(lower, 0)}\\le X\\le ${fmt(upper, 0)})`;
-  dom.distProbability.innerHTML = `\\[${relation}=${fmt(probability, 4)}\\]`;
+  const binomialProbabilityInRange = distributionProbability(binomial, lower, upper);
+  const poissonProbabilityInRange = distributionProbability(poisson, lower, upper);
+  dom.binomialProbability.innerHTML = `\\[P(${fmt(lower, 0)}\\le X\\le ${fmt(upper, 0)})=${fmt(binomialProbabilityInRange, 4)}\\]`;
+  dom.poissonProbability.innerHTML = `\\[P(${fmt(lower, 0)}\\le Y\\le ${fmt(upper, 0)})=${fmt(poissonProbabilityInRange, 4)}\\]`;
   renderDistributionRelationship();
-  renderDistributionNotes(distributionMeta(expected, vari));
-  drawBars(dom.distCanvas, items, {
-    ylabel: state.distribution === "normal" ? "密度" : "確率",
+  renderDistributionNotes({
+    type: rareEventGood ? "近似しやすい設定" : "nを大きく、pを小さくすると近づく",
+    variable: "左は成功回数 \\(X\\sim B(n,p)\\)、右は発生回数 \\(Y\\sim\\operatorname{Po}(\\lambda)\\) です。右の \\(\\lambda\\) は独立に変えられます。",
+    use: "\\(\\lambda=np\\) に合わせると、二項分布の「たくさん試すが成功はまれ」という状況をポアソン分布で近似できます。",
+    expectation: `二項分布の平均は \\(${fmt(lambdaFromBinomial)}\\)、ポアソン分布の平均は \\(${fmt(lambda)}\\) です。近似として比べるなら、この2つを合わせます。`,
+    note: `現在の差は ${fmt(gap, 4)} です。\\(n\\) が大きいだけではなく、\\(p\\) が小さいこと、さらに \\(\\lambda=np\\) に合わせることが重要です。`,
+  });
+  const maxValue = Math.max(...binomial.map((item) => item.value), ...poisson.map((item) => item.value));
+  drawBars(dom.binomialCanvas, binomial, {
+    ylabel: "確率",
     highlightMin: lower,
     highlightMax: upper,
+    maxValue,
+  });
+  drawBars(dom.poissonCanvas, poisson, {
+    ylabel: "確率",
+    highlightMin: lower,
+    highlightMax: upper,
+    maxValue,
   });
   typesetMath();
 }
@@ -1046,7 +1031,7 @@ function renderApproximation() {
   const p = Number(dom.approxP.value);
   const currentX = Number(state.approx.x ?? dom.approxX.value);
   const x = Math.max(0, Math.min(n, Math.round(currentX)));
-  state.approx = { n, p, x, continuity: dom.continuity.checked };
+  state.approx = { ...state.approx, n, p, x, continuity: dom.continuity.checked };
   const mu = n * p;
   const sigma = Math.sqrt(n * p * (1 - p));
   const gap = approximationGap(n, p, mu, sigma);
@@ -1075,8 +1060,86 @@ function renderApproximation() {
   renderApproximationRelationship(n, p, mu, sigma, gap, poissonGap, approxGood, poissonGood);
   renderApproximationLegend(n, p, mu, gap, poissonGap, poissonGood);
   renderNormalTableResult(n, p, x, mu, sigma);
+  renderStandardizationPanel(mu, sigma);
   drawApproximation(n, p, mu, sigma);
   typesetMath();
+}
+
+function renderStandardizationPanel(mu, sigma) {
+  if (!dom.standardLower.value) dom.standardLower.value = fmt(state.approx.standardLower, 1);
+  if (!dom.standardUpper.value) dom.standardUpper.value = fmt(state.approx.standardUpper, 1);
+  let lower = Number(dom.standardLower.value);
+  let upper = Number(dom.standardUpper.value);
+  if (!Number.isFinite(lower)) lower = mu - sigma;
+  if (!Number.isFinite(upper)) upper = mu + sigma;
+  if (lower > upper) [lower, upper] = [upper, lower];
+  state.approx.standardLower = lower;
+  state.approx.standardUpper = upper;
+  const zLower = (lower - mu) / sigma;
+  const zUpper = (upper - mu) / sigma;
+  const probability = normalCdf(upper, mu, sigma) - normalCdf(lower, mu, sigma);
+  dom.standardLowerZ.textContent = `z=${fmt(zLower, 3)}`;
+  dom.standardUpperZ.textContent = `z=${fmt(zUpper, 3)}`;
+  dom.standardResult.innerHTML = `
+    <p>標準化は \\(z=\\dfrac{x-\\mu}{\\sigma}\\) です。</p>
+    <p>元の範囲 \\(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)}\\) は、標準化後に \\(${fmt(zLower, 3)}\\le Z\\le ${fmt(zUpper, 3)}\\) へ移ります。</p>
+    <p>\\[P(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)})=P(${fmt(zLower, 3)}\\le Z\\le ${fmt(zUpper, 3)})=${fmt(probability, 4)}\\]</p>
+  `;
+  drawNormalRange(dom.originalNormalCanvas, mu, sigma, lower, upper, "X");
+  drawNormalRange(dom.standardNormalCanvas, 0, 1, zLower, zUpper, "Z");
+}
+
+function drawNormalRange(canvas, mu, sigma, lower, upper, label) {
+  const { ctx, width, height } = clearCanvas(canvas);
+  const padding = 42;
+  drawFrame(ctx, width, height, padding);
+  const min = mu - 4 * sigma;
+  const max = mu + 4 * sigma;
+  const yMax = normalPdf(mu, mu, sigma);
+  const xAt = (value) => padding + ((value - min) / (max - min)) * (width - padding * 2);
+  const yAt = (value) => height - padding - (normalPdf(value, mu, sigma) / yMax) * (height - padding * 2);
+
+  ctx.fillStyle = "rgba(19, 125, 125, 0.22)";
+  ctx.beginPath();
+  ctx.moveTo(xAt(lower), height - padding);
+  const shadeSteps = 120;
+  for (let i = 0; i <= shadeSteps; i += 1) {
+    const value = lower + ((upper - lower) * i) / shadeSteps;
+    ctx.lineTo(xAt(value), yAt(value));
+  }
+  ctx.lineTo(xAt(upper), height - padding);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = "#137d7d";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  for (let i = 0; i <= 240; i += 1) {
+    const value = min + ((max - min) * i) / 240;
+    const x = xAt(value);
+    const y = yAt(value);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = "#c13d37";
+  ctx.setLineDash([5, 5]);
+  [lower, upper].forEach((value) => {
+    const x = xAt(value);
+    ctx.beginPath();
+    ctx.moveTo(x, padding);
+    ctx.lineTo(x, height - padding);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "#607080";
+  ctx.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+  ctx.fillText(`${label}: ${fmt(lower, 2)} から ${fmt(upper, 2)}`, padding + 4, padding - 16);
+  [min, mu, max].forEach((value) => {
+    ctx.fillText(fmt(value, 1), xAt(value) - 12, height - padding + 18);
+  });
 }
 
 function renderApproximationRelationship(n, p, mu, sigma, gap, poissonGap, approxGood, poissonGood) {
@@ -1309,6 +1372,9 @@ function bindEvents() {
   dom.approxX.addEventListener("input", () => {
     state.approx.x = Number(dom.approxX.value);
     renderApproximation();
+  });
+  [dom.standardLower, dom.standardUpper].forEach((input) => {
+    input.addEventListener("input", renderApproximation);
   });
   dom.continuity.addEventListener("input", renderApproximation);
   window.addEventListener("resize", renderAll);

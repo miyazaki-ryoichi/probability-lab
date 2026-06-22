@@ -282,10 +282,6 @@
               <p class="eyebrow">Binomial and Poisson Distributions</p>
               <h2>二項分布とポアソン分布</h2>
             </div>
-            <div class="segmented" role="tablist" aria-label="分布選択">
-              <button class="segment active" type="button" data-dist="binomial">二項</button>
-              <button class="segment" type="button" data-dist="poisson">ポアソン</button>
-            </div>
           </header>
 
           <section class="panel distribution-relationship">
@@ -296,41 +292,55 @@
             <div class="definition-grid" id="distribution-relationship"></div>
           </section>
 
-          <div class="layout two">
-            <section class="panel">
-              <h3>パラメータ</h3>
-              <div id="distribution-controls"></div>
-              <div class="distribution-query">
-                <h4>範囲の確率</h4>
-                <div class="control-row">
-                  <label>下限 <input id="dist-lower" type="range" /></label>
-                  <output id="dist-lower-value"></output>
-                </div>
-                <div class="control-row">
-                  <label>上限 <input id="dist-upper" type="range" /></label>
-                  <output id="dist-upper-value"></output>
-                </div>
-                <div class="result-card" id="distribution-probability"></div>
+          <section class="panel">
+            <div class="panel-title">
+              <h3>二項分布 \(B(n,p)\) のパラメータ</h3>
+              <span class="chip" id="distribution-chip"></span>
+            </div>
+            <div id="distribution-controls"></div>
+            <div class="distribution-query">
+              <h4>同じ範囲の確率</h4>
+              <div class="control-row">
+                <label>下限 <input id="dist-lower" type="range" /></label>
+                <output id="dist-lower-value"></output>
+              </div>
+              <div class="control-row">
+                <label>上限 <input id="dist-upper" type="range" /></label>
+                <output id="dist-upper-value"></output>
               </div>
               <div class="stats-grid" id="distribution-grid"></div>
-              <div class="equation" id="distribution-formula"></div>
+            </div>
+          </section>
+
+          <div class="layout two distribution-compare-layout">
+            <section class="panel">
+              <div class="panel-title">
+                <h3>左: 二項分布</h3>
+                <span class="chip">\(B(n,p)\)</span>
+              </div>
+              <canvas id="binomial-canvas" width="760" height="420"></canvas>
+              <div class="equation" id="binomial-formula"></div>
+              <div class="result-card" id="binomial-probability"></div>
             </section>
             <section class="panel">
               <div class="panel-title">
-                <h3>二項分布・ポアソン分布</h3>
-                <span class="chip" id="distribution-chip"></span>
+                <h3>右: ポアソン分布</h3>
+                <span class="chip" id="poisson-chip"></span>
               </div>
-              <canvas id="distribution-canvas" width="760" height="420"></canvas>
+              <canvas id="poisson-canvas" width="760" height="420"></canvas>
+              <div class="equation" id="poisson-formula"></div>
+              <div class="result-card" id="poisson-probability"></div>
             </section>
           </div>
 
           <section class="panel distribution-explain">
             <div class="panel-title">
-              <h3>分布の読み方</h3>
+              <h3>同時に見るポイント</h3>
               <span class="chip" id="distribution-type-chip"></span>
             </div>
             <div class="definition-grid" id="distribution-notes"></div>
           </section>
+
 
           <section class="prompt-panel">
             <h3>考察事項</h3>
@@ -393,6 +403,36 @@
               <div class="result-card" id="approx-legend"></div>
             </section>
           </div>
+
+          <section class="panel standard-normal-panel">
+            <div class="panel-title">
+              <h3>標準化で範囲がどう移るか</h3>
+              <span class="chip">\(X\) から \(Z\) へ</span>
+            </div>
+            <div class="layout two">
+              <div>
+                <div class="control-row">
+                  <label>元の下限 \(a\) <input id="standard-lower" type="number" step="0.1" /></label>
+                  <output id="standard-lower-z"></output>
+                </div>
+                <div class="control-row">
+                  <label>元の上限 \(b\) <input id="standard-upper" type="number" step="0.1" /></label>
+                  <output id="standard-upper-z"></output>
+                </div>
+                <div class="result-card" id="standard-result"></div>
+              </div>
+              <div class="standard-canvas-grid">
+                <div>
+                  <h4>元の分布 \(X\sim N(\mu,\sigma^2)\)</h4>
+                  <canvas id="original-normal-canvas" width="760" height="280"></canvas>
+                </div>
+                <div>
+                  <h4>標準化後 \(Z\sim N(0,1)\)</h4>
+                  <canvas id="standard-normal-canvas" width="760" height="280"></canvas>
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section class="prompt-panel">
             <h3>考察事項</h3>

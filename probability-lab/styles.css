@@ -524,6 +524,25 @@ th {
   margin-top: 0;
 }
 
+.standard-normal-panel {
+  margin-top: 14px;
+}
+
+.standard-canvas-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.standard-canvas-grid h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+#original-normal-canvas,
+#standard-normal-canvas {
+  height: 240px;
+}
+
 .check-row {
   display: flex;
   align-items: center;
