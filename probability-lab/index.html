@@ -352,6 +352,14 @@
             </div>
           </header>
 
+          <section class="panel distribution-relationship">
+            <div class="panel-title">
+              <h3>二項分布・ポアソン分布・正規分布の平均と分散</h3>
+              <span class="chip">近似の流れ</span>
+            </div>
+            <div class="definition-grid" id="approx-relationship"></div>
+          </section>
+
           <div class="layout two">
             <section class="panel">
               <h3>二項分布 \(B(n, p)\)</h3>
@@ -368,6 +376,14 @@
                 連続性補正を表示
               </label>
               <div class="stats-grid" id="approx-grid"></div>
+              <div class="distribution-query">
+                <h4>標準化と標準正規分布表</h4>
+                <div class="control-row">
+                  <label>読む値 x <input id="approx-x" type="range" min="0" max="30" step="1" value="12" /></label>
+                  <output id="approx-x-value"></output>
+                </div>
+                <div class="result-card" id="normal-table-result"></div>
+              </div>
             </section>
             <section class="panel">
               <div class="panel-title">

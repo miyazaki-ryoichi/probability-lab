@@ -8,7 +8,7 @@ const state = {
   bayesPreset: "covid",
   distribution: "binomial",
   dist: { n: 12, p: 0.35, lambda: 4, mu: 0, sigma: 1.4, lower: 3, upper: 6 },
-  approx: { n: 30, p: 0.4, continuity: true },
+  approx: { n: 30, p: 0.4, x: 12, continuity: true },
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -112,12 +112,16 @@ const dom = {
   distRelationship: $("#distribution-relationship"),
   approxN: $("#approx-n"),
   approxP: $("#approx-p"),
+  approxX: $("#approx-x"),
   continuity: $("#continuity"),
   approxNValue: $("#approx-n-value"),
   approxPValue: $("#approx-p-value"),
+  approxXValue: $("#approx-x-value"),
   approxGrid: $("#approx-grid"),
   approxCanvas: $("#approx-canvas"),
   approxChip: $("#approx-chip"),
+  approxRelationship: $("#approx-relationship"),
+  normalTableResult: $("#normal-table-result"),
 };
 
 function fmt(value, digits = 3) {
@@ -865,6 +869,45 @@ function distributionProbability(items, lower, upper) {
     .reduce((sum, item) => sum + item.value, 0);
 }
 
+function binomialProbability(n, p, k) {
+  return combination(n, k) * p ** k * (1 - p) ** (n - k);
+}
+
+function binomialCdf(n, p, x) {
+  const maxK = Math.max(0, Math.min(n, Math.floor(x)));
+  let total = 0;
+  for (let k = 0; k <= maxK; k += 1) {
+    total += binomialProbability(n, p, k);
+  }
+  return total;
+}
+
+function normalApproxMass(k, mu, sigma) {
+  return normalCdf(k + 0.5, mu, sigma) - normalCdf(k - 0.5, mu, sigma);
+}
+
+function approximationGap(n, p, mu, sigma) {
+  let total = 0;
+  for (let k = 0; k <= n; k += 1) {
+    total += Math.abs(binomialProbability(n, p, k) - normalApproxMass(k, mu, sigma));
+  }
+  return total;
+}
+
+function standardNormalTableAddress(z) {
+  const rounded = Math.round(Math.abs(z) * 100) / 100;
+  const row = Math.floor(rounded * 10) / 10;
+  const column = Math.round((rounded - row) * 100) / 100;
+  return {
+    z: Math.round(z * 100) / 100,
+    absZ: rounded,
+    row: row.toFixed(1),
+    column: column.toFixed(2),
+    phiAbs: normalCdf(rounded, 0, 1),
+    phi: normalCdf(z, 0, 1),
+  };
+}
+
 function distributionMeta(expected, vari) {
   if (state.distribution === "binomial") {
     const { n, p } = state.dist;
@@ -984,20 +1027,85 @@ function renderDistribution() {
 function renderApproximation() {
   const n = Number(dom.approxN.value);
   const p = Number(dom.approxP.value);
-  state.approx = { n, p, continuity: dom.continuity.checked };
+  const currentX = Number(state.approx.x ?? dom.approxX.value);
+  const x = Math.max(0, Math.min(n, Math.round(currentX)));
+  state.approx = { n, p, x, continuity: dom.continuity.checked };
   const mu = n * p;
   const sigma = Math.sqrt(n * p * (1 - p));
+  const gap = approximationGap(n, p, mu, sigma);
+  const approxGood = n * p >= 5 && n * (1 - p) >= 5;
   dom.approxNValue.textContent = n;
   dom.approxPValue.textContent = fmt(p, 2);
+  dom.approxX.min = 0;
+  dom.approxX.max = n;
+  dom.approxX.step = 1;
+  dom.approxX.value = x;
+  dom.approxXValue.textContent = x;
   dom.approxGrid.innerHTML = [
-    statCard("平均 \\(np\\)", fmt(mu)),
-    statCard("分散 \\(np(1-p)\\)", fmt(sigma ** 2)),
-    statCard("標準偏差", fmt(sigma)),
-    statCard("近似条件", n * p >= 5 && n * (1 - p) >= 5 ? "おおむね良い" : "注意が必要"),
+    statCard("二項分布の平均 \\(np\\)", fmt(mu)),
+    statCard("二項分布の分散 \\(np(1-p)\\)", fmt(sigma ** 2)),
+    statCard("近似する正規分布", `\\(N(${fmt(mu)}, ${fmt(sigma ** 2)})\\)`),
+    statCard("棒と曲線の差", fmt(gap, 4)),
+    statCard("\\(np\\)", fmt(n * p, 1)),
+    statCard("\\(n(1-p)\\)", fmt(n * (1 - p), 1)),
+    statCard("近似条件", approxGood ? "おおむね良い" : "注意が必要"),
+    statCard("読む値", `\\(P(X\\le ${x})\\)`),
   ].join("");
   dom.approxChip.innerHTML = `\\(np=${fmt(n * p, 1)}\\), \\(n(1-p)=${fmt(n * (1 - p), 1)}\\)`;
+  renderApproximationRelationship(n, p, mu, sigma, gap, approxGood);
+  renderNormalTableResult(n, p, x, mu, sigma);
   drawApproximation(n, p, mu, sigma);
   typesetMath();
+}
+
+function renderApproximationRelationship(n, p, mu, sigma, gap, approxGood) {
+  dom.approxRelationship.innerHTML = [
+    `<article class="definition-card">
+      <h4>二項分布 \\(B(n,p)\\)</h4>
+      <p>成功回数を数える離散分布です。</p>
+      <p>平均: \\(E(X)=np=${fmt(mu)}\\)</p>
+      <p>分散: \\(V(X)=np(1-p)=${fmt(sigma ** 2)}\\)</p>
+    </article>`,
+    `<article class="definition-card">
+      <h4>ポアソン分布 \\(\\operatorname{Po}(\\lambda)\\)</h4>
+      <p>まれな発生回数を数える離散分布です。</p>
+      <p>平均: \\(E(X)=\\lambda\\)</p>
+      <p>分散: \\(V(X)=\\lambda\\)</p>
+    </article>`,
+    `<article class="definition-card">
+      <h4>正規分布 \\(N(\\mu,\\sigma^2)\\)</h4>
+      <p>平均のまわりに左右対称に集まる連続分布です。</p>
+      <p>平均: \\(E(X)=\\mu=${fmt(mu)}\\)</p>
+      <p>分散: \\(V(X)=\\sigma^2=${fmt(sigma ** 2)}\\)</p>
+    </article>`,
+    `<article class="definition-card wide">
+      <h4>関係性: 二項分布から正規分布へ</h4>
+      <p>\\(n\\) が大きく、\\(np\\) と \\(n(1-p)\\) が十分大きいとき、\\(B(n,p)\\) は \\(N(np,np(1-p))\\) で近似できます。</p>
+      <p>現在は \\(np=${fmt(n * p, 1)}\\), \\(n(1-p)=${fmt(n * (1 - p), 1)}\\) なので、${approxGood ? "近似しやすい条件です。" : "まだ近似には注意が必要です。"}</p>
+      <p>棒と曲線の差の合計は ${fmt(gap, 4)} です。\\(n\\) を大きくし、\\(p\\) が極端でない状態にすると、この値が小さくなりやすくなります。</p>
+    </article>`,
+  ].join("");
+}
+
+function renderNormalTableResult(n, p, x, mu, sigma) {
+  const correctedX = state.approx.continuity ? x + 0.5 : x;
+  const z = (correctedX - mu) / sigma;
+  const table = standardNormalTableAddress(z);
+  const exact = binomialCdf(n, p, x);
+  const approx = normalCdf(correctedX, mu, sigma);
+  const correctionText = state.approx.continuity ? `${x}+0.5` : `${x}`;
+  const tableText =
+    table.z >= 0
+      ? `標準正規分布表では、行 ${table.row}・列 ${table.column} を読み、\\(\\Phi(${fmt(table.absZ, 2)})=${fmt(table.phiAbs, 4)}\\) とします。`
+      : `標準正規分布表では正の値を読み、\\(\\Phi(-${fmt(table.absZ, 2)})=1-\\Phi(${fmt(table.absZ, 2)})=${fmt(table.phi, 4)}\\) とします。`;
+  dom.normalTableResult.innerHTML = `
+    <p>標準化: \\(Z=\\dfrac{X-\\mu}{\\sigma}\\)</p>
+    <p>\\(P(X\\le ${x})\\) を読むとき、${state.approx.continuity ? "連続性補正を使って" : "連続性補正なしで"} \\(X=${correctionText}\\) とみなします。</p>
+    <p>\\[z=\\dfrac{${fmt(correctedX, 1)}-${fmt(mu)}}{${fmt(sigma)}}=${fmt(z, 3)}\\]</p>
+    <p>${tableText}</p>
+    <p>厳密な二項分布: \\(P(X\\le ${x})=${fmt(exact, 4)}\\)</p>
+    <p>正規近似: \\(P(X\\le ${x})\\approx ${fmt(approx, 4)}\\)</p>
+  `;
 }
 
 function drawApproximation(n, p, mu, sigma) {
@@ -1140,7 +1248,17 @@ function bindEvents() {
     });
   });
 
-  [dom.approxN, dom.approxP, dom.continuity].forEach((input) => input.addEventListener("input", renderApproximation));
+  [dom.approxN, dom.approxP].forEach((input) => {
+    input.addEventListener("input", () => {
+      state.approx.x = Math.round(Number(dom.approxN.value) * Number(dom.approxP.value));
+      renderApproximation();
+    });
+  });
+  dom.approxX.addEventListener("input", () => {
+    state.approx.x = Number(dom.approxX.value);
+    renderApproximation();
+  });
+  dom.continuity.addEventListener("input", renderApproximation);
   window.addEventListener("resize", renderAll);
 }
 
