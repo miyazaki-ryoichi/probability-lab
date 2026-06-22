@@ -34,8 +34,10 @@
           <button class="nav-button active" type="button" data-view="stats">データと代表値</button>
           <button class="nav-button" type="button" data-view="correlation">相関と回帰</button>
           <button class="nav-button" type="button" data-view="bayes">条件付き確率</button>
+          <button class="nav-button" type="button" data-view="random-variables">確率変数と確率分布</button>
           <button class="nav-button" type="button" data-view="distributions">二項分布とポアソン分布</button>
           <button class="nav-button" type="button" data-view="normal">二項分布と正規分布</button>
+          <button class="nav-button" type="button" data-view="standardize">標準化と正規分布表</button>
         </nav>
 
         <section class="teacher-note">
@@ -265,6 +267,15 @@
             </section>
           </div>
 
+          <section class="panel bayes-venn-panel">
+            <div class="panel-title">
+              <h3>ベン図・条件付き確率・ベイズの定理の対応</h3>
+              <span class="chip">分母は条件、分子は重なり</span>
+            </div>
+            <canvas id="bayes-venn" width="760" height="300"></canvas>
+            <div class="definition-grid" id="bayes-venn-notes"></div>
+          </section>
+
           <section class="prompt-panel">
             <h3>考察事項</h3>
             <ul>
@@ -272,6 +283,202 @@
               <li>\(P(+\mid\text{対象})\) と \(P(\text{対象}\mid +)\) は何が違うか。</li>
               <li>事前確率が低い集団と高い集団では、同じ結果の意味はどう変わるか。</li>
               <li>ベイズの定理を「式」ではなく「人数の絞り込み」として説明するとどうなるか。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="view" id="random-variables">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Random Variables and Distributions</p>
+              <h2>確率変数と確率分布</h2>
+            </div>
+          </header>
+
+          <div class="layout two random-variable-lab">
+            <section class="panel">
+              <div class="panel-title">
+                <h3>離散型: 確率分布を作る</h3>
+                <span class="chip">棒をドラッグ</span>
+              </div>
+              <canvas id="rv-discrete-canvas" width="760" height="380"></canvas>
+              <div class="data-actions">
+                <button id="rv-uniform" type="button">一様にする</button>
+                <button id="rv-right-heavy" type="button">右に寄せる</button>
+                <button id="rv-spread" type="button">両端に寄せる</button>
+              </div>
+              <div class="compact-stats" id="rv-discrete-stats"></div>
+              <div class="result-card" id="rv-discrete-note"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-title">
+                <h3>連続型: 面積を読む</h3>
+                <span class="chip">曲線の下が確率</span>
+              </div>
+              <div class="compact-control-grid">
+                <div class="control-row">
+                  <label>分布
+                    <select id="rv-continuous-type">
+                      <option value="normal">正規分布</option>
+                      <option value="uniform">一様分布</option>
+                      <option value="exponential">指数分布</option>
+                    </select>
+                  </label>
+                  <output id="rv-continuous-type-value">PDF</output>
+                </div>
+                <div class="control-row">
+                  <label>平均 \(\mu\) <input id="rv-continuous-mu" type="range" min="-3" max="3" step="0.1" value="0" /></label>
+                  <output id="rv-continuous-mu-value"></output>
+                </div>
+                <div class="control-row">
+                  <label>標準偏差 \(\sigma\) <input id="rv-continuous-sigma" type="range" min="0.4" max="2.5" step="0.1" value="1" /></label>
+                  <output id="rv-continuous-sigma-value"></output>
+                </div>
+                <div class="control-row">
+                  <label>下限 \(a\) <input id="rv-continuous-lower" type="range" min="-5" max="5" step="0.1" value="-1" /></label>
+                  <output id="rv-continuous-lower-value"></output>
+                </div>
+                <div class="control-row">
+                  <label>上限 \(b\) <input id="rv-continuous-upper" type="range" min="-5" max="5" step="0.1" value="1" /></label>
+                  <output id="rv-continuous-upper-value"></output>
+                </div>
+              </div>
+              <canvas id="rv-continuous-canvas" width="760" height="380"></canvas>
+              <div class="result-card" id="rv-continuous-note"></div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h3>確率変数とは</h3>
+              <span class="chip">結果を数値で表す</span>
+            </div>
+            <div class="definition-grid probability-foundation-grid">
+              <article class="definition-card">
+                <h4>確率変数</h4>
+                <p>偶然に決まる結果を、数値として表したものを確率変数といいます。</p>
+                <div class="formula-line">\[\displaystyle X:\Omega\to\mathbb{R}\]</div>
+                <p>例: サイコロの目、検査で陽性になる人数、待ち時間など。</p>
+              </article>
+              <article class="definition-card">
+                <h4>確率分布</h4>
+                <p>確率変数がどの値をどのくらいの確率でとるかを表したものです。</p>
+                <p>離散型では表や棒グラフ、連続型では密度関数と面積で表します。</p>
+              </article>
+              <article class="definition-card">
+                <h4>この後につながる見方</h4>
+                <p>二項分布やポアソン分布は離散型、正規分布は連続型の代表例です。</p>
+                <p>分布を見るときは、値の範囲、平均、分散に注目します。</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h3>離散型確率変数と確率分布</h3>
+              <span class="chip">確率は各値に割り当てる</span>
+            </div>
+            <div class="definition-grid probability-foundation-grid">
+              <article class="definition-card">
+                <h4>特徴</h4>
+                <p>とる値が \(0,1,2,\ldots\) のように飛び飛びの場合です。</p>
+                <p>各値 \(x_i\) に対して、確率 \(P(X=x_i)\) を対応させます。</p>
+              </article>
+              <article class="definition-card">
+                <h4>確率の条件</h4>
+                <div class="formula-line">
+                  \[
+                    0\le P(X=x_i)\le 1,\qquad
+                    \sum_i P(X=x_i)=1
+                  \]
+                </div>
+                <p>全ての値について確率を足すと1になります。</p>
+              </article>
+              <article class="definition-card">
+                <h4>例</h4>
+                <p>サイコロの目 \(X\) では、\(X=1,2,\ldots,6\) をとります。</p>
+                <div class="formula-line">\[\displaystyle P(X=k)=\frac{1}{6}\quad(k=1,\ldots,6)\]</div>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h3>連続型確率変数と確率分布</h3>
+              <span class="chip">確率は面積で読む</span>
+            </div>
+            <div class="definition-grid probability-foundation-grid">
+              <article class="definition-card">
+                <h4>特徴</h4>
+                <p>身長、時間、誤差のように、連続的な値をとる場合です。</p>
+                <p>1点ちょうどの確率ではなく、区間に入る確率を考えます。</p>
+              </article>
+              <article class="definition-card">
+                <h4>密度関数</h4>
+                <p>密度関数 \(f(x)\) の曲線の下の面積が確率になります。</p>
+                <div class="formula-line">
+                  \[
+                    P(a\le X\le b)=\int_a^b f(x)\,dx,\qquad
+                    \int_{-\infty}^{\infty} f(x)\,dx=1
+                  \]
+                </div>
+              </article>
+              <article class="definition-card">
+                <h4>1点の確率</h4>
+                <p>連続型では、1点だけをとる確率は0です。</p>
+                <div class="formula-line">\[\displaystyle P(X=a)=0\]</div>
+                <p>これは「起こらない」という意味ではなく、幅のない点には面積がないという意味です。</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h3>確率変数の平均と分散</h3>
+              <span class="chip">分布の中心と散らばり</span>
+            </div>
+            <div class="definition-grid probability-foundation-grid">
+              <article class="definition-card">
+                <h4>平均・期待値</h4>
+                <p>分布の中心を表します。何度も繰り返したときの長期的な平均値と考えられます。</p>
+                <div class="formula-line">
+                  \[
+                    E[X]=\sum_i x_iP(X=x_i)
+                    \quad\text{または}\quad
+                    E[X]=\int_{-\infty}^{\infty}xf(x)\,dx
+                  \]
+                </div>
+              </article>
+              <article class="definition-card">
+                <h4>分散</h4>
+                <p>平均からどれくらい散らばっているかを表します。</p>
+                <div class="formula-line">
+                  \[
+                    V[X]=E[(X-\mu)^2],\qquad \mu=E[X]
+                  \]
+                </div>
+              </article>
+              <article class="definition-card">
+                <h4>計算でよく使う形</h4>
+                <p>分散は次の形でも計算できます。</p>
+                <div class="formula-line">
+                  \[
+                    V[X]=E[X^2]-(E[X])^2
+                  \]
+                </div>
+                <p>二項分布では \(E[X]=np\), \(V[X]=np(1-p)\) につながります。</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>離散型では「棒の高さ」が確率を表すが、連続型では何が確率を表しているか。</li>
+              <li>連続型で \(P(X=a)=0\) なのに、\(a\) の近くの値が起こり得ると言えるのはなぜか。</li>
+              <li>平均が同じ2つの分布でも、分散が違うとグラフの見え方はどう変わるか。</li>
+              <li>二項分布、ポアソン分布、正規分布は、それぞれ離散型・連続型のどちらに分類されるか。</li>
             </ul>
           </section>
         </section>
@@ -292,62 +499,60 @@
             <div class="definition-grid" id="distribution-relationship"></div>
           </section>
 
-          <section class="panel distribution-control-panel">
-            <div class="panel-title">
-              <h3>二項分布 \(B(n,p)\) のパラメータ</h3>
-              <span class="chip" id="distribution-chip"></span>
-            </div>
-            <div id="distribution-controls"></div>
-            <div class="distribution-query">
-              <h4>比較する整数範囲</h4>
-              <p class="caption">同じ整数範囲 \(a\le k\le b\) で、左の二項分布 \(P(a\le X\le b)\) と右のポアソン近似 \(P(a\le Y\le b)\) を比べます。</p>
-              <div class="control-row">
-                <label>範囲の下限 \(a\) <input id="dist-lower" type="range" /></label>
-                <output id="dist-lower-value"></output>
-              </div>
-              <div class="control-row">
-                <label>範囲の上限 \(b\) <input id="dist-upper" type="range" /></label>
-                <output id="dist-upper-value"></output>
-              </div>
-              <div class="stats-grid" id="distribution-grid"></div>
-            </div>
-          </section>
-
           <div class="layout two distribution-compare-layout">
             <section class="panel">
               <div class="panel-title">
-                <h3>左: 二項分布</h3>
+                <h3>二項分布</h3>
                 <span class="chip">\(B(n,p)\)</span>
               </div>
+              <div class="graph-control-zone">
+                <div class="graph-controls" id="distribution-controls"></div>
+              </div>
               <canvas id="binomial-canvas" width="760" height="420"></canvas>
-              <div class="equation" id="binomial-formula"></div>
-              <div class="result-card" id="binomial-probability"></div>
             </section>
             <section class="panel">
               <div class="panel-title">
-                <h3>右: ポアソン分布</h3>
+                <h3>ポアソン分布</h3>
                 <span class="chip" id="poisson-chip"></span>
               </div>
+              <div class="graph-control-zone">
+                <div class="graph-controls" id="free-poisson-controls"></div>
+                <div class="data-actions graph-actions">
+                  <button id="sync-poisson-lambda" type="button">二項分布から \(\lambda=np\) を計算</button>
+                </div>
+              </div>
               <canvas id="poisson-canvas" width="760" height="420"></canvas>
-              <div class="equation" id="poisson-formula"></div>
+            </section>
+            <section class="panel distribution-range-panel">
+              <h3>比較する整数範囲</h3>
+              <div class="range-control-grid">
+                <div class="control-row range-control-row">
+                  <label>
+                    <span class="range-label">下限 \(a\) <output id="dist-lower-value"></output></span>
+                    <input id="dist-lower" type="range" />
+                  </label>
+                </div>
+                <div class="control-row range-control-row">
+                  <label>
+                    <span class="range-label">上限 \(b\) <output id="dist-upper-value"></output></span>
+                    <input id="dist-upper" type="range" />
+                  </label>
+                </div>
+              </div>
+            </section>
+            <section class="panel">
+              <div class="result-card" id="binomial-probability"></div>
+              <div class="compact-stats" id="binomial-summary"></div>
+            </section>
+            <section class="panel">
               <div class="result-card" id="poisson-probability"></div>
+              <div class="compact-stats" id="poisson-summary"></div>
             </section>
           </div>
 
-          <section class="panel">
-            <div class="panel-title">
-              <h3>ポアソン分布を単体で見る</h3>
-              <span class="chip" id="free-poisson-chip"></span>
-            </div>
-            <div id="free-poisson-controls"></div>
-            <canvas id="free-poisson-canvas" width="760" height="320"></canvas>
-            <div class="equation" id="free-poisson-formula"></div>
-            <div class="result-card" id="free-poisson-probability"></div>
-          </section>
-
           <section class="panel distribution-explain">
             <div class="panel-title">
-              <h3>同時に見るポイント</h3>
+              <h3>近似を確認する観点</h3>
               <span class="chip" id="distribution-type-chip"></span>
             </div>
             <div class="definition-grid" id="distribution-notes"></div>
@@ -375,15 +580,18 @@
 
           <section class="panel distribution-relationship">
             <div class="panel-title">
-              <h3>二項分布・ポアソン分布・正規分布の平均と分散</h3>
-              <span class="chip">近似の流れ</span>
+              <h3>二項分布と正規分布の特徴・関係</h3>
+              <span class="chip">正規近似</span>
             </div>
             <div class="definition-grid" id="approx-relationship"></div>
           </section>
 
-          <div class="layout two">
+          <div class="layout two normal-compare-layout">
             <section class="panel">
-              <h3>二項分布 \(B(n, p)\)</h3>
+              <div class="panel-title">
+                <h3>二項分布 \(B(n,p)\)</h3>
+                <span class="chip">操作</span>
+              </div>
               <div class="control-row">
                 <label>試行回数 n <input id="approx-n" type="range" min="5" max="200" step="1" value="30" /></label>
                 <output id="approx-n-value"></output>
@@ -392,18 +600,12 @@
                 <label>成功確率 p <input id="approx-p" type="range" min="0.05" max="0.95" step="0.01" value="0.4" /></label>
                 <output id="approx-p-value"></output>
               </div>
-              <label class="check-row">
-                <input id="continuity" type="checkbox" checked />
-                連続性補正を表示
-              </label>
-              <div class="stats-grid" id="approx-grid"></div>
-              <div class="distribution-query">
-                <h4>標準化と標準正規分布表</h4>
-                <div class="control-row">
-                  <label>読む値 x <input id="approx-x" type="range" min="0" max="30" step="1" value="12" /></label>
-                  <output id="approx-x-value"></output>
-                </div>
-                <div class="result-card" id="normal-table-result"></div>
+              <div class="check-row">
+                <label>
+                  <input id="continuity" type="checkbox" checked />
+                  連続性補正を表示
+                </label>
+                <a class="text-link" href="continuity-correction.html" target="_blank" rel="noopener">補足</a>
               </div>
             </section>
             <section class="panel">
@@ -412,9 +614,43 @@
                 <span class="chip" id="approx-chip"></span>
               </div>
               <canvas id="approx-canvas" width="820" height="440"></canvas>
+              <div class="compact-stats normal-summary" id="approx-grid"></div>
               <div class="result-card" id="approx-legend"></div>
             </section>
           </div>
+
+          <section class="prompt-panel">
+            <h3>考察事項</h3>
+            <ul>
+              <li>n が大きくなると、二項分布の形はどのように変化するか。</li>
+              <li>\(p\) が \(0.5\) から離れると、正規分布で近似しにくくなるのはなぜか。</li>
+              <li>\(np\) と \(n(1-p)\) が十分大きい、という条件は何を意味しているか。</li>
+              <li>離散分布を連続分布で近似するとき、連続性補正はなぜ必要か。</li>
+            </ul>
+          </section>
+        </section>
+
+        <section class="view" id="standardize">
+          <header class="page-header">
+            <div>
+              <p class="eyebrow">Standardization and Normal Table</p>
+              <h2>標準化・標準正規分布表</h2>
+            </div>
+          </header>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h3>二項分布の値を正規近似で読む</h3>
+              <span class="chip">標準正規分布表</span>
+            </div>
+            <p class="scenario-note">前の「二項分布と正規分布」で設定した \(n,p\) に対して、読む値 \(x\) を標準化し、標準正規分布表の値と比べます。</p>
+            <div class="value-input-row">
+              <label for="approx-x">読む値 \(x\)</label>
+              <input id="approx-x" type="number" min="0" max="30" step="1" value="12" />
+              <output id="approx-x-value">0 から 30 の整数</output>
+            </div>
+            <div class="result-card" id="normal-table-result"></div>
+          </section>
 
           <section class="panel standard-normal-panel">
             <div class="panel-title">
@@ -424,19 +660,19 @@
             <div class="layout two">
               <div>
                 <div class="control-row">
-                  <label>元の平均 \(\mu\) <input id="standard-mu" type="number" step="0.1" /></label>
+                  <label>元の平均 \(\mu\) <input id="standard-mu" type="range" min="-20" max="80" step="0.1" value="20" /></label>
                   <output id="standard-mu-value"></output>
                 </div>
                 <div class="control-row">
-                  <label>元の標準偏差 \(\sigma\) <input id="standard-sigma" type="number" min="0.1" step="0.1" /></label>
+                  <label>元の標準偏差 \(\sigma\) <input id="standard-sigma" type="range" min="0.5" max="20" step="0.1" value="4.2" /></label>
                   <output id="standard-variance-value"></output>
                 </div>
                 <div class="control-row">
-                  <label>元の下限 \(a\)（範囲の始まり） <input id="standard-lower" type="number" step="0.1" /></label>
+                  <label>元の下限 \(a\) <input id="standard-lower" type="range" min="-20" max="80" step="0.1" value="9" /></label>
                   <output id="standard-lower-z"></output>
                 </div>
                 <div class="control-row">
-                  <label>元の上限 \(b\)（範囲の終わり） <input id="standard-upper" type="number" step="0.1" /></label>
+                  <label>元の上限 \(b\) <input id="standard-upper" type="range" min="-20" max="80" step="0.1" value="15" /></label>
                   <output id="standard-upper-z"></output>
                 </div>
                 <div class="result-card" id="standard-result"></div>
@@ -452,16 +688,6 @@
                 </div>
               </div>
             </div>
-          </section>
-
-          <section class="prompt-panel">
-            <h3>考察事項</h3>
-            <ul>
-              <li>n が大きくなると、二項分布の形はどのように変化するか。</li>
-              <li>\(p\) が \(0.5\) から離れると、正規分布で近似しにくくなるのはなぜか。</li>
-              <li>\(np\) と \(n(1-p)\) が十分大きい、という条件は何を意味しているか。</li>
-              <li>離散分布を連続分布で近似するとき、連続性補正はなぜ必要か。</li>
-            </ul>
           </section>
         </section>
       </main>
