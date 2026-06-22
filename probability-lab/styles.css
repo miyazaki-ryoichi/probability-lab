@@ -505,6 +505,24 @@ th {
   gap: 8px;
 }
 
+.distribution-query,
+.distribution-explain {
+  margin-top: 14px;
+}
+
+.distribution-query h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.distribution-query .result-card {
+  margin-top: 12px;
+}
+
+.distribution-explain .definition-card p {
+  margin-top: 0;
+}
+
 .check-row {
   display: flex;
   align-items: center;

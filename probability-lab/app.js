@@ -7,7 +7,7 @@ const state = {
   pointEditTimer: null,
   bayesPreset: "covid",
   distribution: "binomial",
-  dist: { n: 12, p: 0.35, lambda: 4, mu: 0, sigma: 1.4, a: 2, b: 3 },
+  dist: { n: 12, p: 0.35, lambda: 4, mu: 0, sigma: 1.4, lower: 3, upper: 6 },
   approx: { n: 30, p: 0.4, continuity: true },
 };
 
@@ -102,6 +102,13 @@ const dom = {
   distFormula: $("#distribution-formula"),
   distCanvas: $("#distribution-canvas"),
   distChip: $("#distribution-chip"),
+  distLower: $("#dist-lower"),
+  distUpper: $("#dist-upper"),
+  distLowerValue: $("#dist-lower-value"),
+  distUpperValue: $("#dist-upper-value"),
+  distProbability: $("#distribution-probability"),
+  distNotes: $("#distribution-notes"),
+  distTypeChip: $("#distribution-type-chip"),
   approxN: $("#approx-n"),
   approxP: $("#approx-p"),
   continuity: $("#continuity"),
@@ -215,11 +222,16 @@ function drawBars(canvas, items, options = {}) {
   const gap = Math.max(1, Math.min(8, available / items.length / 3));
   const barWidth = Math.max(2, available / items.length - gap);
 
-  ctx.fillStyle = "#137d7d";
   items.forEach((item, index) => {
     const x = padding + index * (barWidth + gap);
     const h = (item.value / max) * (height - padding * 2);
     const y = height - padding - h;
+    const highlighted =
+      options.highlightMin !== undefined &&
+      options.highlightMax !== undefined &&
+      item.x >= options.highlightMin &&
+      item.x <= options.highlightMax;
+    ctx.fillStyle = highlighted ? "#c13d37" : "#137d7d";
     ctx.fillRect(x, y, barWidth, h);
   });
 
@@ -709,6 +721,22 @@ function normalPdf(x, mu, sigma) {
   return Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
 }
 
+function erf(x) {
+  const sign = x < 0 ? -1 : 1;
+  const z = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * z);
+  const y =
+    1 -
+    (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-z * z));
+  return sign * y;
+}
+
+function normalCdf(x, mu, sigma) {
+  return 0.5 * (1 + erf((x - mu) / (sigma * Math.sqrt(2))));
+}
+
 function makeControl(id, label, min, max, step, value) {
   return `
     <div class="control-row">
@@ -740,6 +768,64 @@ function renderDistributionControls() {
   });
 }
 
+function setRangeInput(input, min, max, step, value) {
+  input.min = min;
+  input.max = max;
+  input.step = step;
+  input.value = value;
+}
+
+function defaultDistributionRange() {
+  if (state.distribution === "binomial") {
+    const center = state.dist.n * state.dist.p;
+    const spread = Math.sqrt(state.dist.n * state.dist.p * (1 - state.dist.p));
+    return {
+      lower: Math.max(0, Math.floor(center - spread)),
+      upper: Math.min(state.dist.n, Math.ceil(center + spread)),
+    };
+  }
+  if (state.distribution === "poisson") {
+    const lambda = state.dist.lambda;
+    return {
+      lower: Math.max(0, Math.floor(lambda - Math.sqrt(lambda))),
+      upper: Math.ceil(lambda + Math.sqrt(lambda)),
+    };
+  }
+  return {
+    lower: Number((state.dist.mu - state.dist.sigma).toFixed(1)),
+    upper: Number((state.dist.mu + state.dist.sigma).toFixed(1)),
+  };
+}
+
+function syncDistributionQueryControls() {
+  let min;
+  let max;
+  let step;
+  if (state.distribution === "binomial") {
+    min = 0;
+    max = state.dist.n;
+    step = 1;
+  } else if (state.distribution === "poisson") {
+    min = 0;
+    max = Math.max(12, Math.ceil(state.dist.lambda + 5 * Math.sqrt(state.dist.lambda)));
+    step = 1;
+  } else {
+    min = state.dist.mu - 4 * state.dist.sigma;
+    max = state.dist.mu + 4 * state.dist.sigma;
+    step = 0.1;
+  }
+
+  state.dist.lower = Math.max(min, Math.min(max, state.dist.lower));
+  state.dist.upper = Math.max(min, Math.min(max, state.dist.upper));
+  if (state.dist.lower > state.dist.upper) {
+    [state.dist.lower, state.dist.upper] = [state.dist.upper, state.dist.lower];
+  }
+  setRangeInput(dom.distLower, min, max, step, state.dist.lower);
+  setRangeInput(dom.distUpper, min, max, step, state.dist.upper);
+  dom.distLowerValue.textContent = fmt(state.dist.lower, state.distribution === "normal" ? 1 : 0);
+  dom.distUpperValue.textContent = fmt(state.dist.upper, state.distribution === "normal" ? 1 : 0);
+}
+
 function distributionItems() {
   if (state.distribution === "binomial") {
     const { n, p } = state.dist;
@@ -768,7 +854,62 @@ function distributionItems() {
   });
 }
 
+function distributionProbability(items, lower, upper) {
+  if (state.distribution === "normal") {
+    const { mu, sigma } = state.dist;
+    return normalCdf(upper, mu, sigma) - normalCdf(lower, mu, sigma);
+  }
+  return items
+    .filter((item) => item.x >= lower && item.x <= upper)
+    .reduce((sum, item) => sum + item.value, 0);
+}
+
+function distributionMeta(expected, vari) {
+  if (state.distribution === "binomial") {
+    const { n, p } = state.dist;
+    return {
+      title: "二項分布",
+      type: "離散型: 数えられる値",
+      variable: "同じ条件で独立に試行をくり返し、成功回数を \\(X\\) とします。",
+      use: "例: 10問中の正解数、部品検査で不良品が出る個数、クリックした人数。",
+      expectation: `\\(E(X)=np=${fmt(n)}\\times ${fmt(p, 2)}=${fmt(expected)}\\), \\(V(X)=np(1-p)=${fmt(vari)}\\)`,
+      note: "\\(n\\) を大きくすると横に広がり、\\(p\\) を変えると山の位置が動きます。",
+    };
+  }
+  if (state.distribution === "poisson") {
+    const { lambda } = state.dist;
+    return {
+      title: "ポアソン分布",
+      type: "離散型: 発生回数",
+      variable: "一定の時間・面積・区間で起こる回数を \\(X\\) とします。",
+      use: "例: 1時間の問い合わせ件数、1ページの誤字数、一定区間のアクセス数。",
+      expectation: `\\(E(X)=V(X)=\\lambda=${fmt(lambda)}\\)`,
+      note: "\\(\\lambda\\) が大きくなるほど山は右へ動き、形はだんだん左右対称に近づきます。",
+    };
+  }
+  const { mu, sigma } = state.dist;
+  return {
+    title: "正規分布",
+    type: "連続型: 区間で確率を見る",
+    variable: "身長や測定誤差のように、連続的な値をとる量を \\(X\\) とします。",
+    use: "例: テスト点、測定誤差、平均付近に集まり両端が少ないデータ。",
+    expectation: `\\(E(X)=\\mu=${fmt(mu)}\\), \\(V(X)=\\sigma^2=${fmt(sigma ** 2)}\\)`,
+    note: "連続型では一点の確率 \\(P(X=a)\\) ではなく、面積 \\(P(a\\le X\\le b)\\) を考えます。",
+  };
+}
+
+function renderDistributionNotes(meta) {
+  dom.distTypeChip.textContent = meta.type;
+  dom.distNotes.innerHTML = [
+    `<article class="definition-card"><h4>確率変数</h4><p>${meta.variable}</p></article>`,
+    `<article class="definition-card"><h4>使う場面</h4><p>${meta.use}</p></article>`,
+    `<article class="definition-card"><h4>期待値と分散</h4><p>${meta.expectation}</p></article>`,
+    `<article class="definition-card wide"><h4>授業での見どころ</h4><p>${meta.note}</p></article>`,
+  ].join("");
+}
+
 function renderDistribution() {
+  syncDistributionQueryControls();
   const items = distributionItems();
   let expected;
   let vari;
@@ -794,11 +935,21 @@ function renderDistribution() {
     statCard("期待値 \\(E(X)\\)", fmt(expected)),
     statCard("分散 \\(V(X)\\)", fmt(vari)),
     statCard("標準偏差", fmt(Math.sqrt(vari))),
-    statCard("性質", `\\(E(2X+3)=${fmt(2 * expected + 3)}\\)<br>\\(V(2X+3)=${fmt(4 * vari)}\\)`),
+    statCard("性質", `\\(E(aX+b)=aE(X)+b\\)<br>\\(V(aX+b)=a^2V(X)\\)`),
   ].join("");
   dom.distFormula.innerHTML = formula;
   dom.distChip.textContent = chip;
-  drawBars(dom.distCanvas, items, { ylabel: state.distribution === "normal" ? "密度" : "確率" });
+  const lower = Math.min(state.dist.lower, state.dist.upper);
+  const upper = Math.max(state.dist.lower, state.dist.upper);
+  const probability = distributionProbability(items, lower, upper);
+  const relation = state.distribution === "normal" ? `P(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)})` : `P(${fmt(lower, 0)}\\le X\\le ${fmt(upper, 0)})`;
+  dom.distProbability.innerHTML = `\\[${relation}=${fmt(probability, 4)}\\]`;
+  renderDistributionNotes(distributionMeta(expected, vari));
+  drawBars(dom.distCanvas, items, {
+    ylabel: state.distribution === "normal" ? "密度" : "確率",
+    highlightMin: lower,
+    highlightMax: upper,
+  });
   typesetMath();
 }
 
@@ -948,7 +1099,15 @@ function bindEvents() {
     button.addEventListener("click", () => {
       $$(".segment[data-dist]").forEach((item) => item.classList.toggle("active", item === button));
       state.distribution = button.dataset.dist;
+      Object.assign(state.dist, defaultDistributionRange());
       renderDistributionControls();
+      renderDistribution();
+    });
+  });
+  [dom.distLower, dom.distUpper].forEach((input) => {
+    input.addEventListener("input", () => {
+      const key = input.id.replace("dist-", "");
+      state.dist[key] = Number(input.value);
       renderDistribution();
     });
   });

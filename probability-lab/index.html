@@ -293,6 +293,18 @@
             <section class="panel">
               <h3>パラメータ</h3>
               <div id="distribution-controls"></div>
+              <div class="distribution-query">
+                <h4>範囲の確率</h4>
+                <div class="control-row">
+                  <label>下限 <input id="dist-lower" type="range" /></label>
+                  <output id="dist-lower-value"></output>
+                </div>
+                <div class="control-row">
+                  <label>上限 <input id="dist-upper" type="range" /></label>
+                  <output id="dist-upper-value"></output>
+                </div>
+                <div class="result-card" id="distribution-probability"></div>
+              </div>
               <div class="stats-grid" id="distribution-grid"></div>
               <div class="equation" id="distribution-formula"></div>
             </section>
@@ -304,6 +316,14 @@
               <canvas id="distribution-canvas" width="760" height="420"></canvas>
             </section>
           </div>
+
+          <section class="panel distribution-explain">
+            <div class="panel-title">
+              <h3>分布の読み方</h3>
+              <span class="chip" id="distribution-type-chip"></span>
+            </div>
+            <div class="definition-grid" id="distribution-notes"></div>
+          </section>
 
           <section class="prompt-panel">
             <h3>考察事項</h3>
