@@ -34,7 +34,7 @@
           <button class="nav-button active" type="button" data-view="stats">データと代表値</button>
           <button class="nav-button" type="button" data-view="correlation">相関と回帰</button>
           <button class="nav-button" type="button" data-view="bayes">条件付き確率</button>
-          <button class="nav-button" type="button" data-view="distributions">確率分布</button>
+          <button class="nav-button" type="button" data-view="distributions">二項分布とポアソン分布</button>
           <button class="nav-button" type="button" data-view="normal">二項分布と正規分布</button>
         </nav>
 
@@ -279,13 +279,12 @@
         <section class="view" id="distributions">
           <header class="page-header">
             <div>
-              <p class="eyebrow">Random Variables and Distributions</p>
-              <h2>確率変数・確率分布・性質</h2>
+              <p class="eyebrow">Binomial and Poisson Distributions</p>
+              <h2>二項分布とポアソン分布</h2>
             </div>
             <div class="segmented" role="tablist" aria-label="分布選択">
               <button class="segment active" type="button" data-dist="binomial">二項</button>
               <button class="segment" type="button" data-dist="poisson">ポアソン</button>
-              <button class="segment" type="button" data-dist="normal">正規</button>
             </div>
           </header>
 
@@ -318,7 +317,7 @@
             </section>
             <section class="panel">
               <div class="panel-title">
-                <h3>確率分布</h3>
+                <h3>二項分布・ポアソン分布</h3>
                 <span class="chip" id="distribution-chip"></span>
               </div>
               <canvas id="distribution-canvas" width="760" height="420"></canvas>
@@ -336,10 +335,10 @@
           <section class="prompt-panel">
             <h3>考察事項</h3>
             <ul>
-              <li>確率変数は「結果そのもの」ではなく、結果に数値を対応させるものだと説明できるか。</li>
-              <li>期待値は「最も起こりやすい値」と同じとは限らない。どんな例があるか。</li>
-              <li>分散が同じでも、分布の形が違えば解釈は変わるか。</li>
-              <li>\(E(aX+b)\) と \(V(aX+b)\) はそれぞれどう変化するか。特に分散に \(b\) が効かない理由は何か。</li>
+              <li>二項分布では「何回試すか」が決まっている。ポアソン分布では何が決まっていると考えるか。</li>
+              <li>\(B(n,p)\) の平均 \(np\) と、\(\operatorname{Po}(\lambda)\) の平均 \(\lambda\) はどう対応するか。</li>
+              <li>\(n\) が大きく \(p\) が小さいとき、二項分布がポアソン分布に近づく理由を説明できるか。</li>
+              <li>平均が同じでも、二項分布の分散 \(np(1-p)\) とポアソン分布の分散 \(\lambda\) はどう違うか。</li>
             </ul>
           </section>
         </section>
