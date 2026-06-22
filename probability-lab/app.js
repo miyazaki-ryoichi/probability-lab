@@ -8,7 +8,7 @@ const state = {
   bayesPreset: "covid",
   distribution: "binomial",
   dist: { n: 100, p: 0.05, lambda: 5, mu: 0, sigma: 1.4, lower: 2, upper: 8 },
-  approx: { n: 30, p: 0.4, x: 12, standardLower: 9, standardUpper: 15, continuity: true },
+  approx: { n: 30, p: 0.4, x: 12, standardMu: 20, standardSigma: 4.2, standardLower: 9, standardUpper: 15, continuity: true },
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -98,19 +98,24 @@ const dom = {
   bayesTable: $("#bayes-table"),
   bayesBars: $("#bayes-bars"),
   distControls: $("#distribution-controls"),
+  freePoissonControls: $("#free-poisson-controls"),
   distGrid: $("#distribution-grid"),
   binomialFormula: $("#binomial-formula"),
   poissonFormula: $("#poisson-formula"),
+  freePoissonFormula: $("#free-poisson-formula"),
   binomialCanvas: $("#binomial-canvas"),
   poissonCanvas: $("#poisson-canvas"),
+  freePoissonCanvas: $("#free-poisson-canvas"),
   distChip: $("#distribution-chip"),
   poissonChip: $("#poisson-chip"),
+  freePoissonChip: $("#free-poisson-chip"),
   distLower: $("#dist-lower"),
   distUpper: $("#dist-upper"),
   distLowerValue: $("#dist-lower-value"),
   distUpperValue: $("#dist-upper-value"),
   binomialProbability: $("#binomial-probability"),
   poissonProbability: $("#poisson-probability"),
+  freePoissonProbability: $("#free-poisson-probability"),
   distNotes: $("#distribution-notes"),
   distTypeChip: $("#distribution-type-chip"),
   distRelationship: $("#distribution-relationship"),
@@ -127,6 +132,10 @@ const dom = {
   approxLegend: $("#approx-legend"),
   approxRelationship: $("#approx-relationship"),
   normalTableResult: $("#normal-table-result"),
+  standardMu: $("#standard-mu"),
+  standardSigma: $("#standard-sigma"),
+  standardMuValue: $("#standard-mu-value"),
+  standardVarianceValue: $("#standard-variance-value"),
   standardLower: $("#standard-lower"),
   standardUpper: $("#standard-upper"),
   standardLowerZ: $("#standard-lower-z"),
@@ -766,9 +775,7 @@ function makeControl(id, label, min, max, step, value) {
 function renderDistributionControls() {
   dom.distControls.innerHTML =
     makeControl("dist-n", "二項分布の試行回数 n", 1, 1000, 1, state.dist.n) +
-    makeControl("dist-p", "二項分布の成功確率 p", 0.001, 0.5, 0.001, state.dist.p) +
-    makeControl("dist-lambda", "ポアソン分布の平均 λ", 0.1, 50, 0.1, state.dist.lambda) +
-    `<div class="data-actions"><button id="sync-poisson-lambda" type="button">λ=np に合わせる</button></div>`;
+    makeControl("dist-p", "二項分布の成功確率 p", 0.001, 0.5, 0.001, state.dist.p);
   dom.distControls.querySelectorAll("input").forEach((input) => {
     input.addEventListener("input", () => {
       const key = input.id.replace("dist-", "");
@@ -780,10 +787,14 @@ function renderDistributionControls() {
       renderDistribution();
     });
   });
-  $("#sync-poisson-lambda").addEventListener("click", () => {
-    state.dist.lambda = Number((state.dist.n * state.dist.p).toFixed(3));
-    Object.assign(state.dist, defaultDistributionRange());
-    renderDistributionControls();
+}
+
+function renderFreePoissonControls() {
+  dom.freePoissonControls.innerHTML = makeControl("free-poisson-lambda", "単体表示のポアソン分布の平均 λ", 0.1, 50, 0.1, state.dist.lambda);
+  const input = $("#free-poisson-lambda");
+  input.addEventListener("input", () => {
+    state.dist.lambda = Number(input.value);
+    $("#free-poisson-lambda-value").textContent = fmt(state.dist.lambda, 2);
     renderDistribution();
   });
 }
@@ -797,10 +808,7 @@ function setRangeInput(input, min, max, step, value) {
 
 function defaultDistributionRange() {
   const center = state.dist.n * state.dist.p;
-  const spread = Math.max(
-    Math.sqrt(Math.max(1e-9, state.dist.n * state.dist.p * (1 - state.dist.p))),
-    Math.sqrt(Math.max(1e-9, state.dist.lambda)),
-  );
+  const spread = Math.max(Math.sqrt(Math.max(1e-9, state.dist.n * state.dist.p * (1 - state.dist.p))), Math.sqrt(Math.max(1e-9, center)));
   return {
     lower: Math.max(0, Math.floor(center - spread)),
     upper: Math.min(state.dist.n, Math.ceil(center + spread)),
@@ -809,7 +817,12 @@ function defaultDistributionRange() {
 
 function syncDistributionQueryControls() {
   const min = 0;
-  const max = Math.max(state.dist.n, Math.ceil(state.dist.lambda + 5 * Math.sqrt(Math.max(state.dist.lambda, 1e-9))));
+  const lambdaFromBinomial = state.dist.n * state.dist.p;
+  const max = Math.max(
+    state.dist.n,
+    Math.ceil(lambdaFromBinomial + 5 * Math.sqrt(Math.max(lambdaFromBinomial, 1e-9))),
+    Math.ceil(state.dist.lambda + 5 * Math.sqrt(Math.max(state.dist.lambda, 1e-9))),
+  );
   const step = 1;
 
   state.dist.lower = Math.max(min, Math.min(max, state.dist.lower));
@@ -948,9 +961,9 @@ function renderDistributionNotes(meta) {
 }
 
 function renderDistributionRelationship() {
-  const { n, p, lambda } = state.dist;
+  const { n, p } = state.dist;
   const lambdaFromBinomial = n * p;
-  const rareEventGood = n >= 50 && p <= 0.1 && Math.abs(lambda - lambdaFromBinomial) < 0.001;
+  const rareEventGood = n >= 50 && p <= 0.1;
   dom.distRelationship.innerHTML = [
     `<article class="definition-card">
       <h4>二項分布 \\(B(n,p)\\)</h4>
@@ -967,8 +980,8 @@ function renderDistributionRelationship() {
     `<article class="definition-card wide">
       <h4>関係性: 二項分布の近似としてのポアソン分布</h4>
       <p>ポアソン近似とは、\\(n\\) が大きく \\(p\\) が小さい二項分布 \\(B(n,p)\\) を、\\(\\lambda=np\\) のポアソン分布で近似することです。</p>
-      <p>現在の二項分布では \\(n=${fmt(n, 0)}\\), \\(p=${fmt(p, 3)}\\) なので、\\(np=${fmt(lambdaFromBinomial)}\\) です。右のポアソン分布は \\(\\lambda=${fmt(lambda)}\\) です。</p>
-      <p>近似の見方: ${rareEventGood ? "\\(n\\) が大きく \\(p\\) が小さく、\\(\\lambda=np\\) に合っているので比較しやすい設定です。" : "\\(n\\) が大きいだけでは不十分です。\\(p\\) を小さくし、右の \\(\\lambda\\) を \\(np\\) に合わせると近づきます。"}</p>
+      <p>現在の二項分布では \\(n=${fmt(n, 0)}\\), \\(p=${fmt(p, 3)}\\) なので、比較用の右グラフは自動で \\(\\lambda=np=${fmt(lambdaFromBinomial)}\\) にしています。</p>
+      <p>近似の見方: ${rareEventGood ? "\\(n\\) が大きく \\(p\\) が小さいので、ポアソン近似を観察しやすい設定です。" : "\\(n\\) が大きいだけでは不十分です。\\(p\\) が小さい、つまり1回ごとの成功がまれであるほど近似しやすくなります。"}</p>
     </article>`,
   ].join("");
 }
@@ -978,37 +991,44 @@ function renderDistribution() {
   const { n, p, lambda } = state.dist;
   const lambdaFromBinomial = n * p;
   const binomial = binomialItems(n, p);
-  const maxK = Math.max(n, 12, Math.ceil(lambda + 5 * Math.sqrt(Math.max(lambda, 1e-9))));
-  const poisson = poissonItems(lambda, maxK);
+  const comparisonLambda = lambdaFromBinomial;
+  const comparisonMaxK = Math.max(n, 12, Math.ceil(comparisonLambda + 5 * Math.sqrt(Math.max(comparisonLambda, 1e-9))));
+  const freeMaxK = Math.max(12, Math.ceil(lambda + 5 * Math.sqrt(Math.max(lambda, 1e-9))), state.dist.upper);
+  const poisson = poissonItems(comparisonLambda, comparisonMaxK);
+  const freePoisson = poissonItems(lambda, freeMaxK);
   const binomialVariance = n * p * (1 - p);
-  const poissonVariance = lambda;
-  const gap = poissonApproximationGap(n, p, lambda);
-  const rareEventGood = n >= 50 && p <= 0.1 && Math.abs(lambda - lambdaFromBinomial) < 0.001;
+  const poissonVariance = comparisonLambda;
+  const gap = poissonApproximationGap(n, p, comparisonLambda);
+  const rareEventGood = n >= 50 && p <= 0.1;
   dom.distGrid.innerHTML = [
     statCard("二項分布の平均 \\(np\\)", fmt(lambdaFromBinomial)),
     statCard("二項分布の分散 \\(np(1-p)\\)", fmt(binomialVariance)),
-    statCard("ポアソン分布の平均 \\(\\lambda\\)", fmt(lambda)),
-    statCard("ポアソン分布の分散 \\(\\lambda\\)", fmt(poissonVariance)),
-    statCard("\\(np\\) と \\(\\lambda\\) の差", fmt(Math.abs(lambdaFromBinomial - lambda))),
+    statCard("右グラフの平均 \\(\\lambda=np\\)", fmt(comparisonLambda)),
+    statCard("右グラフの分散 \\(\\lambda\\)", fmt(poissonVariance)),
+    statCard("比較する範囲", `${fmt(Math.min(state.dist.lower, state.dist.upper), 0)} から ${fmt(Math.max(state.dist.lower, state.dist.upper), 0)}`),
     statCard("2つの分布の差", fmt(gap, 4)),
   ].join("");
   dom.binomialFormula.innerHTML = "\\[P(X=k) = {}_nC_k p^k(1-p)^{n-k}\\]";
   dom.poissonFormula.innerHTML = "\\[P(Y=k)=\\frac{e^{-\\lambda}\\lambda^k}{k!}\\]";
   dom.distChip.textContent = `\\(np=${fmt(lambdaFromBinomial)}\\)`;
-  dom.poissonChip.innerHTML = `\\(\\operatorname{Po}(${fmt(lambda)})\\)`;
+  dom.poissonChip.innerHTML = `\\(\\operatorname{Po}(np)=\\operatorname{Po}(${fmt(comparisonLambda)})\\)`;
+  dom.freePoissonChip.innerHTML = `\\(\\operatorname{Po}(${fmt(lambda)})\\)`;
   const lower = Math.min(state.dist.lower, state.dist.upper);
   const upper = Math.max(state.dist.lower, state.dist.upper);
   const binomialProbabilityInRange = distributionProbability(binomial, lower, upper);
   const poissonProbabilityInRange = distributionProbability(poisson, lower, upper);
-  dom.binomialProbability.innerHTML = `\\[P(${fmt(lower, 0)}\\le X\\le ${fmt(upper, 0)})=${fmt(binomialProbabilityInRange, 4)}\\]`;
-  dom.poissonProbability.innerHTML = `\\[P(${fmt(lower, 0)}\\le Y\\le ${fmt(upper, 0)})=${fmt(poissonProbabilityInRange, 4)}\\]`;
+  const freePoissonProbabilityInRange = distributionProbability(freePoisson, lower, upper);
+  dom.binomialProbability.innerHTML = `左の二項分布: \\[P(${fmt(lower, 0)}\\le X\\le ${fmt(upper, 0)})=${fmt(binomialProbabilityInRange, 4)}\\]`;
+  dom.poissonProbability.innerHTML = `右のポアソン近似: \\[P(${fmt(lower, 0)}\\le Y\\le ${fmt(upper, 0)})=${fmt(poissonProbabilityInRange, 4)}\\]`;
+  dom.freePoissonFormula.innerHTML = "\\[P(Z=k)=\\frac{e^{-\\lambda}\\lambda^k}{k!},\\quad E(Z)=V(Z)=\\lambda\\]";
+  dom.freePoissonProbability.innerHTML = `単体のポアソン分布: \\[P(${fmt(lower, 0)}\\le Z\\le ${fmt(upper, 0)})=${fmt(freePoissonProbabilityInRange, 4)}\\]`;
   renderDistributionRelationship();
   renderDistributionNotes({
     type: rareEventGood ? "近似しやすい設定" : "nを大きく、pを小さくすると近づく",
-    variable: "左は成功回数 \\(X\\sim B(n,p)\\)、右は発生回数 \\(Y\\sim\\operatorname{Po}(\\lambda)\\) です。右の \\(\\lambda\\) は独立に変えられます。",
-    use: "\\(\\lambda=np\\) に合わせると、二項分布の「たくさん試すが成功はまれ」という状況をポアソン分布で近似できます。",
-    expectation: `二項分布の平均は \\(${fmt(lambdaFromBinomial)}\\)、ポアソン分布の平均は \\(${fmt(lambda)}\\) です。近似として比べるなら、この2つを合わせます。`,
-    note: `現在の差は ${fmt(gap, 4)} です。\\(n\\) が大きいだけではなく、\\(p\\) が小さいこと、さらに \\(\\lambda=np\\) に合わせることが重要です。`,
+    variable: "左は成功回数 \\(X\\sim B(n,p)\\)、右は比較用の \\(Y\\sim\\operatorname{Po}(np)\\) です。下の単体表示では別の \\(\\lambda\\) を自由に指定できます。",
+    use: "\\(\\lambda=np\\) にすると、二項分布の「たくさん試すが成功はまれ」という状況をポアソン分布で近似できます。",
+    expectation: `比較用では二項分布の平均 \\(np\\) とポアソン分布の平均 \\(\\lambda\\) がどちらも \\(${fmt(lambdaFromBinomial)}\\) になります。`,
+    note: `現在の差は ${fmt(gap, 4)} です。\\(n\\) が大きいだけではなく、\\(p\\) が小さいことが重要です。`,
   });
   const maxValue = Math.max(...binomial.map((item) => item.value), ...poisson.map((item) => item.value));
   drawBars(dom.binomialCanvas, binomial, {
@@ -1022,6 +1042,11 @@ function renderDistribution() {
     highlightMin: lower,
     highlightMax: upper,
     maxValue,
+  });
+  drawBars(dom.freePoissonCanvas, freePoisson, {
+    ylabel: "確率",
+    highlightMin: lower,
+    highlightMax: upper,
   });
   typesetMath();
 }
@@ -1060,27 +1085,39 @@ function renderApproximation() {
   renderApproximationRelationship(n, p, mu, sigma, gap, poissonGap, approxGood, poissonGood);
   renderApproximationLegend(n, p, mu, gap, poissonGap, poissonGood);
   renderNormalTableResult(n, p, x, mu, sigma);
-  renderStandardizationPanel(mu, sigma);
+  renderStandardizationPanel();
   drawApproximation(n, p, mu, sigma);
   typesetMath();
 }
 
-function renderStandardizationPanel(mu, sigma) {
+function renderStandardizationPanel() {
+  if (!dom.standardMu.value) dom.standardMu.value = fmt(state.approx.standardMu, 1);
+  if (!dom.standardSigma.value) dom.standardSigma.value = fmt(state.approx.standardSigma, 1);
   if (!dom.standardLower.value) dom.standardLower.value = fmt(state.approx.standardLower, 1);
   if (!dom.standardUpper.value) dom.standardUpper.value = fmt(state.approx.standardUpper, 1);
+  let mu = Number(dom.standardMu.value);
+  let sigma = Number(dom.standardSigma.value);
   let lower = Number(dom.standardLower.value);
   let upper = Number(dom.standardUpper.value);
+  if (!Number.isFinite(mu)) mu = 0;
+  if (!Number.isFinite(sigma) || sigma <= 0) sigma = 1;
   if (!Number.isFinite(lower)) lower = mu - sigma;
   if (!Number.isFinite(upper)) upper = mu + sigma;
   if (lower > upper) [lower, upper] = [upper, lower];
+  state.approx.standardMu = mu;
+  state.approx.standardSigma = sigma;
   state.approx.standardLower = lower;
   state.approx.standardUpper = upper;
+  dom.standardMuValue.textContent = `平均=${fmt(mu, 2)}`;
+  dom.standardVarianceValue.textContent = `分散=${fmt(sigma ** 2, 2)}`;
   const zLower = (lower - mu) / sigma;
   const zUpper = (upper - mu) / sigma;
   const probability = normalCdf(upper, mu, sigma) - normalCdf(lower, mu, sigma);
   dom.standardLowerZ.textContent = `z=${fmt(zLower, 3)}`;
   dom.standardUpperZ.textContent = `z=${fmt(zUpper, 3)}`;
   dom.standardResult.innerHTML = `
+    <p>上のグラフは、ここで設定した元の分布 \\(X\\sim N(\\mu,\\sigma^2)\\) です。現在は \\(\\mu=${fmt(mu, 2)}\\), \\(\\sigma=${fmt(sigma, 2)}\\), \\(\\sigma^2=${fmt(sigma ** 2, 2)}\\) です。</p>
+    <p>\\(a\\) は元の範囲の下限、\\(b\\) は元の範囲の上限です。</p>
     <p>標準化は \\(z=\\dfrac{x-\\mu}{\\sigma}\\) です。</p>
     <p>元の範囲 \\(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)}\\) は、標準化後に \\(${fmt(zLower, 3)}\\le Z\\le ${fmt(zUpper, 3)}\\) へ移ります。</p>
     <p>\\[P(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)})=P(${fmt(zLower, 3)}\\le Z\\le ${fmt(zUpper, 3)})=${fmt(probability, 4)}\\]</p>
@@ -1373,7 +1410,7 @@ function bindEvents() {
     state.approx.x = Number(dom.approxX.value);
     renderApproximation();
   });
-  [dom.standardLower, dom.standardUpper].forEach((input) => {
+  [dom.standardMu, dom.standardSigma, dom.standardLower, dom.standardUpper].forEach((input) => {
     input.addEventListener("input", renderApproximation);
   });
   dom.continuity.addEventListener("input", renderApproximation);
@@ -1392,6 +1429,7 @@ function init() {
   dom.dataInput.value = state.data.join(", ");
   createPoints("positive");
   renderDistributionControls();
+  renderFreePoissonControls();
   bindEvents();
   renderAll();
   typesetMath();

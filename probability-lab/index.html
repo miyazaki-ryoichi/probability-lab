@@ -292,20 +292,21 @@
             <div class="definition-grid" id="distribution-relationship"></div>
           </section>
 
-          <section class="panel">
+          <section class="panel distribution-control-panel">
             <div class="panel-title">
               <h3>二項分布 \(B(n,p)\) のパラメータ</h3>
               <span class="chip" id="distribution-chip"></span>
             </div>
             <div id="distribution-controls"></div>
             <div class="distribution-query">
-              <h4>同じ範囲の確率</h4>
+              <h4>比較する整数範囲</h4>
+              <p class="caption">同じ整数範囲 \(a\le k\le b\) で、左の二項分布 \(P(a\le X\le b)\) と右のポアソン近似 \(P(a\le Y\le b)\) を比べます。</p>
               <div class="control-row">
-                <label>下限 <input id="dist-lower" type="range" /></label>
+                <label>範囲の下限 \(a\) <input id="dist-lower" type="range" /></label>
                 <output id="dist-lower-value"></output>
               </div>
               <div class="control-row">
-                <label>上限 <input id="dist-upper" type="range" /></label>
+                <label>範囲の上限 \(b\) <input id="dist-upper" type="range" /></label>
                 <output id="dist-upper-value"></output>
               </div>
               <div class="stats-grid" id="distribution-grid"></div>
@@ -332,6 +333,17 @@
               <div class="result-card" id="poisson-probability"></div>
             </section>
           </div>
+
+          <section class="panel">
+            <div class="panel-title">
+              <h3>ポアソン分布を単体で見る</h3>
+              <span class="chip" id="free-poisson-chip"></span>
+            </div>
+            <div id="free-poisson-controls"></div>
+            <canvas id="free-poisson-canvas" width="760" height="320"></canvas>
+            <div class="equation" id="free-poisson-formula"></div>
+            <div class="result-card" id="free-poisson-probability"></div>
+          </section>
 
           <section class="panel distribution-explain">
             <div class="panel-title">
@@ -412,11 +424,19 @@
             <div class="layout two">
               <div>
                 <div class="control-row">
-                  <label>元の下限 \(a\) <input id="standard-lower" type="number" step="0.1" /></label>
+                  <label>元の平均 \(\mu\) <input id="standard-mu" type="number" step="0.1" /></label>
+                  <output id="standard-mu-value"></output>
+                </div>
+                <div class="control-row">
+                  <label>元の標準偏差 \(\sigma\) <input id="standard-sigma" type="number" min="0.1" step="0.1" /></label>
+                  <output id="standard-variance-value"></output>
+                </div>
+                <div class="control-row">
+                  <label>元の下限 \(a\)（範囲の始まり） <input id="standard-lower" type="number" step="0.1" /></label>
                   <output id="standard-lower-z"></output>
                 </div>
                 <div class="control-row">
-                  <label>元の上限 \(b\) <input id="standard-upper" type="number" step="0.1" /></label>
+                  <label>元の上限 \(b\)（範囲の終わり） <input id="standard-upper" type="number" step="0.1" /></label>
                   <output id="standard-upper-z"></output>
                 </div>
                 <div class="result-card" id="standard-result"></div>
