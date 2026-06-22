@@ -120,6 +120,7 @@ const dom = {
   approxGrid: $("#approx-grid"),
   approxCanvas: $("#approx-canvas"),
   approxChip: $("#approx-chip"),
+  approxLegend: $("#approx-legend"),
   approxRelationship: $("#approx-relationship"),
   normalTableResult: $("#normal-table-result"),
 };
@@ -873,6 +874,14 @@ function binomialProbability(n, p, k) {
   return combination(n, k) * p ** k * (1 - p) ** (n - k);
 }
 
+function poissonProbability(lambda, k) {
+  let probability = Math.exp(-lambda);
+  for (let i = 1; i <= k; i += 1) {
+    probability *= lambda / i;
+  }
+  return probability;
+}
+
 function binomialCdf(n, p, x) {
   const maxK = Math.max(0, Math.min(n, Math.floor(x)));
   let total = 0;
@@ -890,6 +899,14 @@ function approximationGap(n, p, mu, sigma) {
   let total = 0;
   for (let k = 0; k <= n; k += 1) {
     total += Math.abs(binomialProbability(n, p, k) - normalApproxMass(k, mu, sigma));
+  }
+  return total;
+}
+
+function poissonApproximationGap(n, p, lambda) {
+  let total = 0;
+  for (let k = 0; k <= n; k += 1) {
+    total += Math.abs(binomialProbability(n, p, k) - poissonProbability(lambda, k));
   }
   return total;
 }
@@ -1033,7 +1050,9 @@ function renderApproximation() {
   const mu = n * p;
   const sigma = Math.sqrt(n * p * (1 - p));
   const gap = approximationGap(n, p, mu, sigma);
+  const poissonGap = poissonApproximationGap(n, p, mu);
   const approxGood = n * p >= 5 && n * (1 - p) >= 5;
+  const poissonGood = n >= 20 && p <= 0.1;
   dom.approxNValue.textContent = n;
   dom.approxPValue.textContent = fmt(p, 2);
   dom.approxX.min = 0;
@@ -1045,20 +1064,22 @@ function renderApproximation() {
     statCard("二項分布の平均 \\(np\\)", fmt(mu)),
     statCard("二項分布の分散 \\(np(1-p)\\)", fmt(sigma ** 2)),
     statCard("近似する正規分布", `\\(N(${fmt(mu)}, ${fmt(sigma ** 2)})\\)`),
-    statCard("棒と曲線の差", fmt(gap, 4)),
+    statCard("正規近似との差", fmt(gap, 4)),
+    statCard("ポアソン近似との差", fmt(poissonGap, 4)),
     statCard("\\(np\\)", fmt(n * p, 1)),
     statCard("\\(n(1-p)\\)", fmt(n * (1 - p), 1)),
     statCard("近似条件", approxGood ? "おおむね良い" : "注意が必要"),
     statCard("読む値", `\\(P(X\\le ${x})\\)`),
   ].join("");
   dom.approxChip.innerHTML = `\\(np=${fmt(n * p, 1)}\\), \\(n(1-p)=${fmt(n * (1 - p), 1)}\\)`;
-  renderApproximationRelationship(n, p, mu, sigma, gap, approxGood);
+  renderApproximationRelationship(n, p, mu, sigma, gap, poissonGap, approxGood, poissonGood);
+  renderApproximationLegend(n, p, mu, gap, poissonGap, poissonGood);
   renderNormalTableResult(n, p, x, mu, sigma);
   drawApproximation(n, p, mu, sigma);
   typesetMath();
 }
 
-function renderApproximationRelationship(n, p, mu, sigma, gap, approxGood) {
+function renderApproximationRelationship(n, p, mu, sigma, gap, poissonGap, approxGood, poissonGood) {
   dom.approxRelationship.innerHTML = [
     `<article class="definition-card">
       <h4>二項分布 \\(B(n,p)\\)</h4>
@@ -1069,8 +1090,8 @@ function renderApproximationRelationship(n, p, mu, sigma, gap, approxGood) {
     `<article class="definition-card">
       <h4>ポアソン分布 \\(\\operatorname{Po}(\\lambda)\\)</h4>
       <p>まれな発生回数を数える離散分布です。</p>
-      <p>平均: \\(E(X)=\\lambda\\)</p>
-      <p>分散: \\(V(X)=\\lambda\\)</p>
+      <p>平均: \\(E(X)=\\lambda=${fmt(mu)}\\)</p>
+      <p>分散: \\(V(X)=\\lambda=${fmt(mu)}\\)</p>
     </article>`,
     `<article class="definition-card">
       <h4>正規分布 \\(N(\\mu,\\sigma^2)\\)</h4>
@@ -1082,9 +1103,20 @@ function renderApproximationRelationship(n, p, mu, sigma, gap, approxGood) {
       <h4>関係性: 二項分布から正規分布へ</h4>
       <p>\\(n\\) が大きく、\\(np\\) と \\(n(1-p)\\) が十分大きいとき、\\(B(n,p)\\) は \\(N(np,np(1-p))\\) で近似できます。</p>
       <p>現在は \\(np=${fmt(n * p, 1)}\\), \\(n(1-p)=${fmt(n * (1 - p), 1)}\\) なので、${approxGood ? "近似しやすい条件です。" : "まだ近似には注意が必要です。"}</p>
-      <p>棒と曲線の差の合計は ${fmt(gap, 4)} です。\\(n\\) を大きくし、\\(p\\) が極端でない状態にすると、この値が小さくなりやすくなります。</p>
+      <p>正規近似との差は ${fmt(gap, 4)} です。\\(n\\) を大きくし、\\(p\\) が極端でない状態にすると、この値が小さくなりやすくなります。</p>
+      <p>ポアソン近似との差は ${fmt(poissonGap, 4)} です。${poissonGood ? "\\(n\\) が大きく \\(p\\) が小さいので、まれな事象の近似として見比べやすい設定です。" : "ポアソン近似は、典型的には \\(n\\) を大きく、\\(p\\) を小さくしたときに見比べやすくなります。"}</p>
     </article>`,
   ].join("");
+}
+
+function renderApproximationLegend(n, p, lambda, normalGap, poissonGap, poissonGood) {
+  dom.approxLegend.innerHTML = `
+    <p><strong style="color:#137d7d;">緑</strong>: 二項分布 \\(B(n,p)\\) の確率を棒で表しています。</p>
+    <p><strong style="color:#c13d37;">朱</strong>: 同じ平均・分散をもつ正規分布 \\(N(np,np(1-p))\\) の曲線です。</p>
+    <p><strong style="color:#2f6ed3;">青</strong>: \\(\\lambda=np=${fmt(lambda)}\\) としたポアソン分布 \\(\\operatorname{Po}(\\lambda)\\) の近似です。</p>
+    <p>現在は \\(n=${fmt(n, 0)}\\), \\(p=${fmt(p, 2)}\\) です。正規近似との差は ${fmt(normalGap, 4)}、ポアソン近似との差は ${fmt(poissonGap, 4)} です。</p>
+    <p>${poissonGood ? "ポアソン近似は比較しやすい設定です。" : "ポアソン近似を見たいときは、\\(n\\) を大きく、\\(p\\) を小さくしてください。例: \\(n=100\\), \\(p=0.05\\)。"}</p>
+  `;
 }
 
 function renderNormalTableResult(n, p, x, mu, sigma) {
@@ -1114,7 +1146,8 @@ function drawApproximation(n, p, mu, sigma) {
   drawFrame(ctx, width, height, padding);
   const probs = Array.from({ length: n + 1 }, (_, k) => combination(n, k) * p ** k * (1 - p) ** (n - k));
   const normalHeights = probs.map((_, k) => normalPdf(k, mu, sigma));
-  const max = Math.max(...probs, ...normalHeights);
+  const poissonHeights = probs.map((_, k) => poissonProbability(mu, k));
+  const max = Math.max(...probs, ...normalHeights, ...poissonHeights);
   const visibleStep = Math.max(1, Math.floor(n / 60));
   const shown = probs.map((prob, k) => ({ k, prob })).filter((item) => item.k % visibleStep === 0 || n <= 60);
   const barGap = 1;
@@ -1141,6 +1174,23 @@ function drawApproximation(n, p, mu, sigma) {
   }
   ctx.stroke();
 
+  ctx.strokeStyle = "#2f6ed3";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  let startedPoisson = false;
+  probs.forEach((_, k) => {
+    if (k % visibleStep !== 0 && n > 60) return;
+    const x = padding + (k / n) * (width - padding * 2);
+    const y = height - padding - (poissonProbability(mu, k) / max) * (height - padding * 2);
+    if (!startedPoisson) {
+      ctx.moveTo(x, y);
+      startedPoisson = true;
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+
   if (state.approx.continuity) {
     ctx.strokeStyle = "#b36b00";
     ctx.setLineDash([5, 5]);
@@ -1159,6 +1209,8 @@ function drawApproximation(n, p, mu, sigma) {
   ctx.fillText("棒: 二項分布", padding + 4, padding - 16);
   ctx.fillStyle = "#c13d37";
   ctx.fillText("線: 正規分布", padding + 110, padding - 16);
+  ctx.fillStyle = "#2f6ed3";
+  ctx.fillText("青線: ポアソン近似", padding + 220, padding - 16);
 }
 
 function bindEvents() {
