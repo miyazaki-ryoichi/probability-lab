@@ -109,6 +109,7 @@ const dom = {
   distProbability: $("#distribution-probability"),
   distNotes: $("#distribution-notes"),
   distTypeChip: $("#distribution-type-chip"),
+  distRelationship: $("#distribution-relationship"),
   approxN: $("#approx-n"),
   approxP: $("#approx-p"),
   continuity: $("#continuity"),
@@ -908,6 +909,32 @@ function renderDistributionNotes(meta) {
   ].join("");
 }
 
+function renderDistributionRelationship() {
+  const { n, p } = state.dist;
+  const lambdaFromBinomial = n * p;
+  const rareEventGood = n >= 20 && p <= 0.1;
+  dom.distRelationship.innerHTML = [
+    `<article class="definition-card">
+      <h4>二項分布 \\(B(n,p)\\)</h4>
+      <p>回数が決まっている独立な試行で、成功回数を数える分布です。</p>
+      <p>式: \\(P(X=k)={}_nC_kp^k(1-p)^{n-k}\\)</p>
+      <p>平均と分散: \\(E(X)=np\\), \\(V(X)=np(1-p)\\)</p>
+    </article>`,
+    `<article class="definition-card">
+      <h4>ポアソン分布 \\(\\operatorname{Po}(\\lambda)\\)</h4>
+      <p>一定の時間・範囲で、まれに起こる出来事の発生回数を数える分布です。</p>
+      <p>式: \\(P(X=k)=\\dfrac{e^{-\\lambda}\\lambda^k}{k!}\\)</p>
+      <p>平均と分散: \\(E(X)=V(X)=\\lambda\\)</p>
+    </article>`,
+    `<article class="definition-card wide">
+      <h4>関係性: 二項分布の近似としてのポアソン分布</h4>
+      <p>試行回数 \\(n\\) が大きく、成功確率 \\(p\\) が小さく、\\(\\lambda=np\\) が一定とみなせるとき、\\(B(n,p)\\) は \\(\\operatorname{Po}(\\lambda)\\) に近づきます。</p>
+      <p>現在の二項分布では \\(n=${fmt(n, 0)}\\), \\(p=${fmt(p, 2)}\\) なので、\\(\\lambda=np=${fmt(lambdaFromBinomial)}\\) です。</p>
+      <p>近似の見方: ${rareEventGood ? "まれな事象の近似として比較しやすい設定です。" : "近似の考え方は示せますが、典型的には \\(n\\) を大きく、\\(p\\) を小さくするとより分かりやすくなります。"}</p>
+    </article>`,
+  ].join("");
+}
+
 function renderDistribution() {
   syncDistributionQueryControls();
   const items = distributionItems();
@@ -944,6 +971,7 @@ function renderDistribution() {
   const probability = distributionProbability(items, lower, upper);
   const relation = state.distribution === "normal" ? `P(${fmt(lower, 1)}\\le X\\le ${fmt(upper, 1)})` : `P(${fmt(lower, 0)}\\le X\\le ${fmt(upper, 0)})`;
   dom.distProbability.innerHTML = `\\[${relation}=${fmt(probability, 4)}\\]`;
+  renderDistributionRelationship();
   renderDistributionNotes(distributionMeta(expected, vari));
   drawBars(dom.distCanvas, items, {
     ylabel: state.distribution === "normal" ? "密度" : "確率",

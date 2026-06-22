@@ -506,7 +506,8 @@ th {
 }
 
 .distribution-query,
-.distribution-explain {
+.distribution-explain,
+.distribution-relationship {
   margin-top: 14px;
 }
 
